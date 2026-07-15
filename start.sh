@@ -127,6 +127,10 @@ if [ ! -d "$SCRIPT_DIR/node_modules/express" ]; then
     [ -f "$SCRIPT_DIR/package-lock.json" ] && cp "$SCRIPT_DIR/package-lock.json" "$INSTALL_DIR/package-lock.json"
 
     # Run npm install in the local temp directory (no sync interference)
+    # Add the runtime directory to PATH so native modules can find node
+    if [ -x "$RUNTIME_DIR/bin/node" ]; then
+        export PATH="$RUNTIME_DIR/bin:$PATH"
+    fi
     cd "$INSTALL_DIR"
     "$NPM_CMD" install --production
     if [ $? -ne 0 ]; then

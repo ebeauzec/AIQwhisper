@@ -121,6 +121,8 @@ if not exist "%SCRIPT_DIR%node_modules\express" (
     if exist "%SCRIPT_DIR%package-lock.json" copy "%SCRIPT_DIR%package-lock.json" "!INSTALL_DIR!\package-lock.json" >nul
 
     :: Run npm install in the local temp directory (no sync interference)
+    :: Add the runtime directory to PATH so native modules can find node.exe
+    if exist "%RUNTIME_DIR%\node.exe" set "PATH=%RUNTIME_DIR%;!PATH!"
     pushd "!INSTALL_DIR!"
     call "%NPM_CMD%" install --production
     if !errorlevel! neq 0 (
