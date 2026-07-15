@@ -108,26 +108,30 @@ Think of it as **your own private Active IQ Unified Manager** — without the he
 - Network access to your NetApp storage systems
 - Credentials for each system (admin or read-only accounts)
 
-### Installation
+### Installation & Launch
 
-```bash
-# Clone the repository
+**Windows:**
+```cmd
 git clone https://github.com/ebeauzec/AIQwhisper.git
 cd AIQwhisper
-
-# Install dependencies
-npm install
-
-# Configure
-cp .env.example .env
-# Edit .env — set MASTER_PASSPHRASE to something secure
-
-# Initialize the database
-npm run init-db
-
-# Start the server
-npm start
+start.bat
 ```
+
+**macOS / Linux:**
+```bash
+git clone https://github.com/ebeauzec/AIQwhisper.git
+cd AIQwhisper
+chmod +x start.sh
+./start.sh
+```
+
+That's it. The startup script automatically:
+- ✅ Verifies Node.js 18+ is installed
+- ✅ Installs dependencies (`npm install`) on first run
+- ✅ Creates default configuration from `.env.example`
+- ✅ Creates the data directory
+- ✅ Initializes the database
+- ✅ Starts the server at **http://localhost:3080**
 
 ### First Steps
 
