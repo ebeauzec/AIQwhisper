@@ -32,13 +32,23 @@ const router = Router();
  */
 router.get('/', (req, res, next) => {
   try {
-    const filters = {};
-    if (req.query.severity) filters.severity = req.query.severity;
-    if (req.query.category) filters.category = req.query.category;
-    if (req.query.system_id) filters.system_id = Number(req.query.system_id);
-    if (req.query.status) filters.status = req.query.status;
+    const db = getDb();
+    const conditions = [];
+    const params = {};
 
-    const data = models.issues.getAll(filters);
+    if (req.query.severity) { conditions.push('i.severity = @severity'); params.severity = req.query.severity; }
+    if (req.query.category) { conditions.push('i.category = @category'); params.category = req.query.category; }
+    if (req.query.system_id) { conditions.push('i.system_id = @system_id'); params.system_id = Number(req.query.system_id); }
+    if (req.query.status) { conditions.push('i.status = @status'); params.status = req.query.status; }
+
+    const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+    const data = db.prepare(`
+      SELECT i.*, s.name AS system_name, s.type AS system_type
+      FROM issues i
+      JOIN systems s ON s.id = i.system_id
+      ${where}
+      ORDER BY i.detected_at DESC
+    `).all(params);
     res.json({ data, count: data.length });
   } catch (err) {
     next(err);
@@ -123,6 +133,34 @@ router.patch('/:id/resolve', (req, res, next) => {
       return res.status(404).json({ error: 'Issue not found.' });
     }
     res.json({ data: { changes } });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// PATCH /:id/reopen – Reopen a resolved/dismissed issue
+// ---------------------------------------------------------------------------
+
+/**
+ * @route   PATCH /api/issues/:id/reopen
+ * @desc    Set the issue status back to "open" and clear resolved_at.
+ * @param   {string} id – Issue primary key.
+ * @returns {{ data: { changes: number } }}
+ */
+router.patch('/:id/reopen', (req, res, next) => {
+  try {
+    const db = getDb();
+    const id = Number(req.params.id);
+    const now = new Date().toISOString().replace('T', ' ').replace(/\.\d{3}Z$/, '');
+    const result = db.prepare(`
+      UPDATE issues SET status = 'open', resolved_at = NULL, updated_at = @now
+      WHERE id = @id AND status IN ('resolved', 'dismissed')
+    `).run({ id, now });
+    if (!result.changes) {
+      return res.status(404).json({ error: 'Issue not found or not in a reopenable state.' });
+    }
+    res.json({ data: { changes: result.changes } });
   } catch (err) {
     next(err);
   }

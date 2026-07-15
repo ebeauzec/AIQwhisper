@@ -181,8 +181,10 @@ router.get('/:systemId/timeseries', (req, res, next) => {
       return res.status(404).json({ error: 'System not found.' });
     }
 
-    const end = req.query.end || new Date().toISOString().replace('T', ' ').replace(/\.\d{3}Z$/, '');
-    const start = req.query.start || new Date(Date.now() - MS_PER_HOUR).toISOString().replace('T', ' ').replace(/\.\d{3}Z$/, '');
+    // Always normalise to space-separated format matching stored timestamps
+    const normalize = (v) => v.replace('T', ' ').replace(/\.\d{3}Z$/, '').replace('Z', '');
+    const end = normalize(req.query.end || new Date().toISOString());
+    const start = normalize(req.query.start || new Date(Date.now() - MS_PER_HOUR).toISOString());
 
     const tier = req.query.tier && req.query.tier !== 'auto'
       ? req.query.tier

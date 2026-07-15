@@ -6,7 +6,7 @@
 const PerformanceView = {
   systemId: null,
   resourceType: 'volume',
-  range: '1h',
+  range: '24h',
   resources: [],
 
   ranges: {

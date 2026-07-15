@@ -1920,3 +1920,35 @@ select {
   white-space: pre-wrap;
   word-break: break-word;
 }
+
+/* ---- Issues View ---- */
+.issue-card { padding: 0; overflow: hidden; }
+.issue-header {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  padding: 16px 20px; cursor: pointer; transition: background 0.15s;
+}
+.issue-header:hover { background: rgba(255,255,255,0.03); }
+.issue-left { display: flex; align-items: flex-start; gap: 14px; flex: 1; min-width: 0; }
+.issue-right { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; margin-left: 16px; }
+.issue-info { flex: 1; min-width: 0; }
+.issue-title { font-weight: 600; color: var(--text-primary); margin-bottom: 6px; }
+.issue-meta { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.issue-system-name {
+  font-size: 0.8rem; font-weight: 600; color: var(--accent);
+  background: rgba(99,102,241,0.12); padding: 2px 10px; border-radius: 12px;
+}
+.issue-resource-tag {
+  font-size: 0.75rem; color: var(--text-secondary);
+  background: var(--bg-secondary); padding: 2px 10px; border-radius: 12px;
+  font-family: 'JetBrains Mono', monospace;
+}
+.issue-category {
+  font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;
+  letter-spacing: 0.05em; font-weight: 600;
+}
+.issue-time { font-size: 0.75rem; color: var(--text-muted); }
+.issue-detail { border-top: 1px solid var(--border-color); }
+.issue-detail-body { padding: 16px 20px 20px; }
+.detail-section { margin-bottom: 10px; font-size: 0.88rem; color: var(--text-secondary); }
+.detail-section strong { color: var(--text-primary); margin-right: 6px; }
+.issue-actions { display: flex; gap: 10px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border-color); }

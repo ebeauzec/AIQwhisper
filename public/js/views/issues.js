@@ -89,31 +89,39 @@ const IssuesView = {
               ${severityBadge(issue.severity)}
               <div class="issue-info">
                 <div class="issue-title">${escapeHtml(issue.title)}</div>
-                <div class="issue-desc">${escapeHtml(issue.description || '')}</div>
+                <div class="issue-meta">
+                  <span class="issue-system-name">🖥 ${escapeHtml(issue.system_name || 'System ' + issue.system_id)}</span>
+                  <span class="issue-resource-tag">${escapeHtml(issue.resource_type || '')}${issue.resource_id ? ': ' + escapeHtml(issue.resource_id) : ''}</span>
+                  <span class="badge badge-info">${escapeHtml(issue.status || 'open')}</span>
+                </div>
               </div>
             </div>
             <div class="issue-right">
-              <span class="issue-resource">${escapeHtml(issue.resource_type || '')} ${escapeHtml(issue.resource_id || '')}</span>
+              <span class="issue-category">${escapeHtml(issue.category || '')}</span>
               <span class="issue-time">${timeAgo(issue.detected_at || issue.created_at)}</span>
-              <span class="badge badge-info">${escapeHtml(issue.status || 'open')}</span>
             </div>
           </div>
           <div class="issue-detail" id="issue-detail-${issue.id}" style="display:none">
             <div class="issue-detail-body">
               <div class="detail-section">
+                <strong>Description:</strong> ${escapeHtml(issue.description || '–')}
+              </div>
+              <div class="detail-section">
+                <strong>Affected System:</strong> ${escapeHtml(issue.system_name || 'System ' + issue.system_id)} (${escapeHtml(issue.system_type || 'unknown')})
+              </div>
+              <div class="detail-section">
+                <strong>Resource:</strong> ${escapeHtml(issue.resource_type || '–')} → ${escapeHtml(issue.resource_id || '–')}
+              </div>
+              <div class="detail-section">
                 <strong>Category:</strong> ${escapeHtml(issue.category || '–')}
               </div>
-              <div class="detail-section">
-                <strong>Affected System:</strong> ${escapeHtml(issue.system_name || 'System ' + issue.system_id)}
-              </div>
-              <div class="detail-section">
-                <strong>Rule:</strong> ${escapeHtml(issue.rule_id || '–')}
-              </div>
+              ${issue.rule_id ? `<div class="detail-section"><strong>Rule:</strong> ${escapeHtml(issue.rule_id)}</div>` : ''}
               ${issue.remediation ? `<div class="detail-section"><strong>Remediation:</strong><p>${escapeHtml(issue.remediation)}</p></div>` : ''}
               ${issue.details_json ? `<div class="detail-section"><strong>Details:</strong><pre class="code-block">${escapeHtml(typeof issue.details_json === 'string' ? issue.details_json : JSON.stringify(issue.details_json, null, 2))}</pre></div>` : ''}
               <div class="issue-actions">
                 ${issue.status !== 'acknowledged' && issue.status !== 'resolved' ? `<button class="btn btn-ghost btn-sm" onclick="IssuesView.acknowledge(${issue.id})">✓ Acknowledge</button>` : ''}
                 ${issue.status !== 'resolved' ? `<button class="btn btn-primary btn-sm" onclick="IssuesView.resolve(${issue.id})">✓ Resolve</button>` : ''}
+                ${issue.status === 'resolved' || issue.status === 'dismissed' ? `<button class="btn btn-ghost btn-sm" style="color:var(--accent)" onclick="IssuesView.reopen(${issue.id})">↺ Reopen</button>` : ''}
               </div>
             </div>
           </div>
@@ -145,6 +153,16 @@ const IssuesView = {
       this.loadIssues();
     } catch (err) {
       showToast('Failed to resolve: ' + err.message, 'error');
+    }
+  },
+
+  async reopen(id) {
+    try {
+      await api.patch(`/issues/${id}/reopen`);
+      showToast('Issue reopened', 'success');
+      this.loadIssues();
+    } catch (err) {
+      showToast('Failed to reopen: ' + err.message, 'error');
     }
   }
 };

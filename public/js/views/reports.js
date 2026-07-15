@@ -132,14 +132,144 @@ const ReportsView = {
   },
 
   downloadReport(id, name) {
-    const filename = (name || `report_${id}`) + '.json';
-    api.get(`/reports/${id}`).then(res => {
-      const blob = new Blob([JSON.stringify(res.data?.report || res.data, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url; a.download = filename; a.click();
-      URL.revokeObjectURL(url);
-    }).catch(err => showToast('Download failed: ' + err.message, 'error'));
+    // Show format picker
+    const formats = [
+      { key: 'csv',   label: 'CSV (Excel-compatible)',  icon: '📊' },
+      { key: 'json',  label: 'JSON (raw data)',          icon: '📄' },
+      { key: 'pdf',   label: 'PDF (print to PDF)',       icon: '📑' }
+    ];
+
+    const html = `
+      <div style="display:flex;flex-direction:column;gap:12px;padding:8px 0">
+        ${formats.map(f => `
+          <button class="btn btn-ghost" style="justify-content:flex-start;gap:10px;font-size:0.95rem"
+                  onclick="ReportsView._doDownload(${id}, '${name.replace(/'/g, "\\'")}', '${f.key}')">
+            <span style="font-size:1.3rem">${f.icon}</span> ${f.label}
+          </button>`).join('')}
+      </div>`;
+    showModal('Download: ' + (name || 'Report'), html);
+  },
+
+  async _doDownload(id, name, format) {
+    try {
+      const res = await api.get(`/reports/${id}`);
+      const reportData = res.data?.report || res.data || {};
+      const filename = (name || `report_${id}`).replace(/[^a-zA-Z0-9_-]/g, '_');
+
+      if (format === 'json') {
+        const blob = new Blob([JSON.stringify(reportData, null, 2)], { type: 'application/json' });
+        this._triggerDownload(blob, filename + '.json');
+      } else if (format === 'csv') {
+        const csv = this._reportToCsv(reportData);
+        // Use UTF-8 BOM for Excel compatibility
+        const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
+        this._triggerDownload(blob, filename + '.csv');
+      } else if (format === 'pdf') {
+        this._printReportAsPdf(reportData, name);
+      }
+
+      // Close any modal
+      const modalOverlay = document.querySelector('.modal-overlay');
+      if (modalOverlay) modalOverlay.remove();
+      showToast(`Downloaded as ${format.toUpperCase()}`, 'success');
+    } catch (err) {
+      showToast('Download failed: ' + err.message, 'error');
+    }
+  },
+
+  _triggerDownload(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename; a.click();
+    URL.revokeObjectURL(url);
+  },
+
+  /** Convert a report JSON payload into a multi-section CSV string. */
+  _reportToCsv(report) {
+    const lines = [];
+
+    const toCsvRow = (arr) => arr.map(v => {
+      const s = String(v == null ? '' : v);
+      return s.includes(',') || s.includes('"') || s.includes('\n')
+        ? '"' + s.replace(/"/g, '""') + '"'
+        : s;
+    }).join(',');
+
+    // Walk top-level keys in the report
+    for (const [section, value] of Object.entries(report)) {
+      if (Array.isArray(value) && value.length > 0 && typeof value[0] === 'object') {
+        // It's a table-like array of objects
+        lines.push(`--- ${section.toUpperCase()} ---`);
+        const headers = Object.keys(value[0]);
+        lines.push(toCsvRow(headers));
+        for (const row of value) {
+          lines.push(toCsvRow(headers.map(h => row[h])));
+        }
+        lines.push('');
+      } else if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+        // Nested object — flatten one level
+        lines.push(`--- ${section.toUpperCase()} ---`);
+        for (const [k, v] of Object.entries(value)) {
+          if (typeof v === 'object') {
+            lines.push(toCsvRow([k, JSON.stringify(v)]));
+          } else {
+            lines.push(toCsvRow([k, v]));
+          }
+        }
+        lines.push('');
+      } else {
+        lines.push(toCsvRow([section, value]));
+      }
+    }
+    return lines.join('\n');
+  },
+
+  /** Open a print-friendly window for "Save as PDF" via the browser's print dialog. */
+  _printReportAsPdf(report, name) {
+    const win = window.open('', '_blank', 'width=900,height=700');
+    if (!win) { showToast('Popup blocked — allow popups for PDF export', 'warning'); return; }
+
+    let html = `<!DOCTYPE html><html><head><title>${name}</title>
+      <style>
+        body { font-family: Arial, sans-serif; padding: 40px; color: #1a1a1a; font-size: 13px; }
+        h1 { color: #1e293b; border-bottom: 2px solid #3b82f6; padding-bottom: 8px; }
+        h2 { color: #334155; margin-top: 28px; }
+        table { border-collapse: collapse; width: 100%; margin: 12px 0; page-break-inside: auto; }
+        th { background: #f1f5f9; text-align: left; font-weight: 600; }
+        th, td { border: 1px solid #cbd5e1; padding: 6px 10px; font-size: 12px; }
+        tr:nth-child(even) { background: #f8fafc; }
+        .meta { color: #64748b; font-size: 11px; margin-bottom: 24px; }
+        @media print { body { padding: 20px; } }
+      </style></head><body>
+      <h1>${escapeHtml(name)}</h1>
+      <div class="meta">Generated: ${report.generated || new Date().toISOString()}</div>`;
+
+    for (const [section, value] of Object.entries(report)) {
+      if (section === 'generated') continue;
+      html += `<h2>${escapeHtml(section.replace(/_/g, ' ').toUpperCase())}</h2>`;
+
+      if (Array.isArray(value) && value.length > 0 && typeof value[0] === 'object') {
+        const headers = Object.keys(value[0]);
+        html += '<table><thead><tr>' + headers.map(h => `<th>${escapeHtml(h)}</th>`).join('') + '</tr></thead><tbody>';
+        for (const row of value.slice(0, 200)) {
+          html += '<tr>' + headers.map(h => `<td>${escapeHtml(String(row[h] ?? ''))}</td>`).join('') + '</tr>';
+        }
+        html += '</tbody></table>';
+        if (value.length > 200) html += `<p style="color:#94a3b8"><em>... and ${value.length - 200} more rows</em></p>`;
+      } else if (typeof value === 'object' && value !== null) {
+        html += '<table><tbody>';
+        for (const [k, v] of Object.entries(value)) {
+          html += `<tr><td style="font-weight:600">${escapeHtml(k)}</td><td>${escapeHtml(typeof v === 'object' ? JSON.stringify(v) : String(v))}</td></tr>`;
+        }
+        html += '</tbody></table>';
+      } else {
+        html += `<p>${escapeHtml(String(value))}</p>`;
+      }
+    }
+
+    html += `<script>setTimeout(()=>{window.print();},400)<\/script></body></html>`;
+    win.document.write(html);
+    win.document.close();
   },
 
   async deleteReport(id, name) {
