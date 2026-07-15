@@ -36,7 +36,7 @@ Think of it as **your own private Active IQ Unified Manager** — without the he
 | **MSP Reporting** | Health scorecards, firmware currency, export | Limited without cloud features |
 | **Extensibility** | Full REST API, modular architecture | REST API available |
 | **Cloud Dependency** | **None** — fully air-gapped capable | Recommends cloud connection |
-| **Cost** | Free (proprietary license) | Free with ONTAP |
+| **Cost** | Proprietary license | Included with NetApp support contract |
 | **Open Architecture** | Node.js — easy to customize | Java — complex to customize |
 
 > **See [docs/COMPARISON.md](docs/COMPARISON.md) for a detailed feature comparison.**

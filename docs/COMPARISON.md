@@ -56,7 +56,7 @@ AIQwhisper and AIQUM take radically different architectural approaches to achiev
 | **Network** | Access to storage systems (port varies by platform) | Access to storage systems + internet recommended |
 | **Browser** | Any modern browser | Firefox ESR, Chrome (specific supported versions) |
 | **Default Port** | 3080 | 443 |
-| **License** | Free (proprietary license) | Included with NetApp support contract |
+| **License** | Proprietary license | Included with NetApp support contract |
 
 > [!NOTE]
 > AIQwhisper's minimal requirements mean it can comfortably run alongside other services on existing infrastructure — no dedicated VM or server required.
