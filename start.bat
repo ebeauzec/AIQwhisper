@@ -166,11 +166,32 @@ if not exist "%SCRIPT_DIR%data" (
 )
 
 :: -------------------------------------------------------
-:: 5. Start the application (browser opens automatically)
+:: 5. Kill any previous instance on the same port
+:: -------------------------------------------------------
+
+:: Read PORT from .env (default 3000)
+set "APP_PORT=3000"
+if exist "%SCRIPT_DIR%.env" (
+    for /f "tokens=1,* delims==" %%a in ('findstr /B "PORT=" "%SCRIPT_DIR%.env"') do (
+        set "APP_PORT=%%b"
+    )
+)
+
+:: Check if something is already listening on that port
+for /f "tokens=5" %%p in ('netstat -aon ^| findstr "LISTENING" ^| findstr ":%APP_PORT% "') do (
+    if "%%p" NEQ "0" (
+        echo [WARN] Port !APP_PORT! is in use by PID %%p — stopping previous instance...
+        taskkill /F /PID %%p >nul 2>&1
+        timeout /t 1 /nobreak >nul
+    )
+)
+
+:: -------------------------------------------------------
+:: 6. Start the application (browser opens automatically)
 :: -------------------------------------------------------
 echo.
 echo ============================================
-echo  Starting AIQwhisper...
+echo  Starting AIQwhisper on port !APP_PORT!...
 echo  Dashboard will open in your browser.
 echo  Press Ctrl+C to stop
 echo ============================================

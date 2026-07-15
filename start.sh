@@ -178,11 +178,32 @@ if [ ! -d "$SCRIPT_DIR/data" ]; then
 fi
 
 # -------------------------------------------------------
-# 5. Start the application (browser opens automatically)
+# 5. Kill any previous instance on the same port
+# -------------------------------------------------------
+
+# Read PORT from .env (default 3000)
+APP_PORT=3000
+if [ -f "$SCRIPT_DIR/.env" ]; then
+    _port=$(grep -E '^PORT=' "$SCRIPT_DIR/.env" | cut -d= -f2 | tr -d '[:space:]')
+    [ -n "$_port" ] && APP_PORT="$_port"
+fi
+
+# Check if something is already listening on that port
+if command -v lsof &> /dev/null; then
+    OLD_PID=$(lsof -ti ":$APP_PORT" 2>/dev/null)
+    if [ -n "$OLD_PID" ]; then
+        echo -e "${YELLOW}[WARN]${NC} Port $APP_PORT is in use by PID $OLD_PID — stopping previous instance..."
+        kill $OLD_PID 2>/dev/null
+        sleep 1
+    fi
+fi
+
+# -------------------------------------------------------
+# 6. Start the application (browser opens automatically)
 # -------------------------------------------------------
 echo ""
 echo "============================================"
-echo -e " ${BOLD}Starting AIQwhisper...${NC}"
+echo -e " ${BOLD}Starting AIQwhisper on port ${APP_PORT}...${NC}"
 echo -e " Dashboard will open in your browser."
 echo " Press Ctrl+C to stop"
 echo "============================================"
