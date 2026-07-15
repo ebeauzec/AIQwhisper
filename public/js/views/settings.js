@@ -64,6 +64,15 @@ const SettingsView = {
           </div>
         </div>
 
+        <div class="card settings-section">
+          <h3>🎭 Demo Mode</h3>
+          <p class="settings-desc">Load a representative set of sample data (4 systems, issues, metrics, events) to demonstrate AIQwhisper's capabilities. Demo data can be removed at any time.</p>
+          <div class="actions-bar" style="gap:10px">
+            <button class="btn btn-primary" id="btn-seed-demo">Load Demo Data</button>
+            <button class="btn btn-danger" id="btn-clear-demo">Clear Demo Data</button>
+          </div>
+          <div id="demo-status" style="margin-top:10px;font-size:0.85rem;color:var(--text-muted)"></div>
+        </div>
         <div class="card settings-section" style="grid-column:1/-1">
           <h3>Manual Actions</h3>
           <p class="settings-desc">Trigger maintenance operations manually. These run asynchronously in the background.</p>
@@ -88,6 +97,43 @@ const SettingsView = {
     document.getElementById('btn-save-autolearn')?.addEventListener('click', () => {
       const enabled = document.getElementById('set-auto-learn')?.checked;
       showToast(`Auto-learn ${enabled ? 'enabled' : 'disabled'}`, 'success');
+    });
+
+    // ---- Demo mode buttons ----
+    document.getElementById('btn-seed-demo')?.addEventListener('click', async () => {
+      const btn = document.getElementById('btn-seed-demo');
+      const status = document.getElementById('demo-status');
+      if (btn) { btn.disabled = true; btn.textContent = 'Loading…'; }
+      try {
+        const res = await api.post('/demo/seed');
+        showToast(res.data?.message || 'Demo data loaded!', 'success');
+        if (status) status.textContent = '✓ Demo data loaded — navigate to Dashboard to see it.';
+        SettingsView.loadDbStats();
+      } catch (err) {
+        const msg = err.message.includes('409') ? 'Demo data already exists. Clear it first.' : err.message;
+        showToast(msg, 'error');
+        if (status) status.textContent = '⚠ ' + msg;
+      } finally {
+        if (btn) { btn.disabled = false; btn.textContent = 'Load Demo Data'; }
+      }
+    });
+
+    document.getElementById('btn-clear-demo')?.addEventListener('click', async () => {
+      if (!confirm('Remove all demo data? This will delete all DEMO- prefixed systems and their data.')) return;
+      const btn = document.getElementById('btn-clear-demo');
+      const status = document.getElementById('demo-status');
+      if (btn) { btn.disabled = true; btn.textContent = 'Clearing…'; }
+      try {
+        const res = await api.post('/demo/clear');
+        showToast(res.data?.message || 'Demo data cleared', 'success');
+        if (status) status.textContent = '✓ Demo data cleared.';
+        SettingsView.loadDbStats();
+      } catch (err) {
+        showToast('Failed to clear: ' + err.message, 'error');
+        if (status) status.textContent = '⚠ ' + err.message;
+      } finally {
+        if (btn) { btn.disabled = false; btn.textContent = 'Clear Demo Data'; }
+      }
     });
 
     // ---- Manual action buttons ----

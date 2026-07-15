@@ -99,9 +99,13 @@ const ReportsView = {
           { key: 'generated_at', label: 'Generated', formatter: v => formatDate(v) },
           { key: 'file_size_bytes', label: 'Size', formatter: v => v ? formatBytes(v) : '–' },
           { key: 'id', label: 'Actions', sortable: false, formatter: (v, row) => {
-            if (row.status !== 'completed') return '–';
-            return `<button class="btn btn-ghost btn-sm" onclick="ReportsView.viewReport(${v})">View</button>
-                    <button class="btn btn-ghost btn-sm" onclick="ReportsView.downloadReport(${v}, '${escapeHtml(row.name)}')">Download</button>`;
+            let btns = '';
+            if (row.status === 'completed') {
+              btns += `<button class="btn btn-ghost btn-sm" onclick="ReportsView.viewReport(${v})">View</button> `;
+              btns += `<button class="btn btn-ghost btn-sm" onclick="ReportsView.downloadReport(${v}, '${escapeHtml(row.name)}')">Download</button> `;
+            }
+            btns += `<button class="btn btn-ghost btn-sm" style="color:var(--danger)" onclick="ReportsView.deleteReport(${v}, '${escapeHtml(row.name)}')">Delete</button>`;
+            return btns;
           }}
         ],
         data: reports,
@@ -136,5 +140,18 @@ const ReportsView = {
       a.href = url; a.download = filename; a.click();
       URL.revokeObjectURL(url);
     }).catch(err => showToast('Download failed: ' + err.message, 'error'));
+  },
+
+  async deleteReport(id, name) {
+    const confirmed = confirm(`Delete report "${name}"?\nThis action cannot be undone.`);
+    if (!confirmed) return;
+
+    try {
+      await api.delete(`/reports/${id}`);
+      showToast('Report deleted', 'success');
+      this.loadReportsList();
+    } catch (err) {
+      showToast('Failed to delete report: ' + err.message, 'error');
+    }
   }
 };
