@@ -128,8 +128,29 @@ if [ ! -d "$SCRIPT_DIR/node_modules" ]; then
     echo ""
     echo -e "${YELLOW}[SETUP]${NC} Installing dependencies... (first run only, may take a minute)"
     echo ""
+
+    # Use a local temp cache to avoid file-locking issues on synced
+    # filesystems (Google Drive, OneDrive, Dropbox, iCloud, etc.)
+    NPM_CACHE="${TMPDIR:-/tmp}/aiqwhisper-npm-cache"
+    mkdir -p "$NPM_CACHE"
+
     cd "$SCRIPT_DIR"
-    "$NPM_CMD" install --production
+    if ! "$NPM_CMD" install --production --cache "$NPM_CACHE" 2>&1; then
+        echo ""
+        echo -e "${YELLOW}[WARN]${NC} First install attempt failed. Retrying with clean cache..."
+        "$NPM_CMD" cache clean --force --cache "$NPM_CACHE" 2>/dev/null
+        if ! "$NPM_CMD" install --production --cache "$NPM_CACHE" 2>&1; then
+            echo ""
+            echo -e "${RED}[ERROR]${NC} npm install failed. If running from a cloud-synced folder"
+            echo "        (Google Drive, OneDrive, Dropbox, iCloud), try one of:"
+            echo ""
+            echo "  1. Pause file sync, then run ./start.sh again"
+            echo "  2. Copy this folder to a local path and run from there:"
+            echo "     cp -r . ~/AIQwhisper && cd ~/AIQwhisper && ./start.sh"
+            echo ""
+            exit 1
+        fi
+    fi
     echo ""
     echo -e "${GREEN}[OK]${NC} Dependencies installed."
 else

@@ -128,14 +128,31 @@ if not exist "%SCRIPT_DIR%node_modules" (
     echo.
     echo [SETUP] Installing dependencies... ^(first run only, may take a minute^)
     echo.
+
+    :: Use a local temp cache to avoid file-locking issues on synced
+    :: filesystems (Google Drive, OneDrive, Dropbox, etc.)
+    set "NPM_CACHE=%TEMP%\aiqwhisper-npm-cache"
+    if not exist "!NPM_CACHE!" mkdir "!NPM_CACHE!"
+
     pushd "%SCRIPT_DIR%"
-    call "%NPM_CMD%" install --production
-    if %errorlevel% neq 0 (
+    call "%NPM_CMD%" install --production --cache "!NPM_CACHE!"
+    if !errorlevel! neq 0 (
         echo.
-        echo [ERROR] npm install failed. Check your internet connection and try again.
-        popd
-        pause
-        exit /b 1
+        echo [WARN] First install attempt failed. Retrying with clean cache...
+        call "%NPM_CMD%" cache clean --force --cache "!NPM_CACHE!" 2>nul
+        call "%NPM_CMD%" install --production --cache "!NPM_CACHE!"
+        if !errorlevel! neq 0 (
+            echo.
+            echo [ERROR] npm install failed. If you are running from a cloud-synced
+            echo         folder ^(Google Drive, OneDrive, Dropbox^), try one of:
+            echo.
+            echo   1. Pause file sync, then run start.bat again
+            echo   2. Copy this folder to a local path ^(e.g. C:\AIQwhisper^) and run from there
+            echo.
+            popd
+            pause
+            exit /b 1
+        )
     )
     popd
     echo.
