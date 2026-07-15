@@ -64,7 +64,6 @@ if [ -z "$NODE_CMD" ]; then
         Linux)  PLATFORM="linux" ;;
         *)
             echo -e "${RED}[ERROR]${NC} Unsupported OS: $OS"
-            echo "        Please install Node.js 18+ manually: https://nodejs.org/"
             exit 1
             ;;
     esac
@@ -113,49 +112,49 @@ if [ -z "$NODE_CMD" ]; then
 fi
 
 # -------------------------------------------------------
-# 2. Install dependencies if needed
+# 2. Install dependencies
 # -------------------------------------------------------
-if [ ! -d "$SCRIPT_DIR/node_modules/express" ]; then
+# Use a PERSISTENT local directory for node_modules to avoid
+# cloud-sync file-locking issues (Google Drive, iCloud, Dropbox).
+# Source lives wherever the user cloned; node_modules lives locally.
+if [ "$(uname -s)" = "Darwin" ]; then
+    LOCAL_APP_DIR="$HOME/Library/Application Support/AIQwhisper"
+else
+    LOCAL_APP_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/AIQwhisper"
+fi
+mkdir -p "$LOCAL_APP_DIR"
+
+if [ ! -d "$LOCAL_APP_DIR/node_modules/express" ]; then
     echo ""
     echo -e "${YELLOW}[SETUP]${NC} Installing dependencies... (first run only, may take a minute)"
     echo ""
 
-    # Install to a LOCAL temp directory first to avoid cloud-sync
-    # file-locking issues (Google Drive, iCloud Drive, Dropbox, etc.)
-    INSTALL_DIR=$(mktemp -d)
-    cp "$SCRIPT_DIR/package.json" "$INSTALL_DIR/package.json"
-    [ -f "$SCRIPT_DIR/package-lock.json" ] && cp "$SCRIPT_DIR/package-lock.json" "$INSTALL_DIR/package-lock.json"
+    # Copy package files to local directory
+    cp "$SCRIPT_DIR/package.json" "$LOCAL_APP_DIR/package.json"
+    [ -f "$SCRIPT_DIR/package-lock.json" ] && cp "$SCRIPT_DIR/package-lock.json" "$LOCAL_APP_DIR/package-lock.json"
 
-    # Run npm install in the local temp directory (no sync interference)
-    # Add the runtime directory to PATH so native modules can find node
+    # Ensure node is on PATH for native module builds (better-sqlite3)
     if [ -x "$RUNTIME_DIR/bin/node" ]; then
         export PATH="$RUNTIME_DIR/bin:$PATH"
     fi
-    cd "$INSTALL_DIR"
+
+    # Run npm install on the local filesystem (no sync interference)
+    cd "$LOCAL_APP_DIR"
     "$NPM_CMD" install --production
     if [ $? -ne 0 ]; then
         echo ""
         echo -e "${RED}[ERROR]${NC} npm install failed. Check your internet connection."
-        rm -rf "$INSTALL_DIR"
         exit 1
     fi
 
-    # Copy node_modules back to the project
-    echo -e "${YELLOW}[SETUP]${NC} Copying dependencies to project..."
-    rm -rf "$SCRIPT_DIR/node_modules" 2>/dev/null
-    cp -r "$INSTALL_DIR/node_modules" "$SCRIPT_DIR/node_modules"
-
-    # Copy lock file back
-    [ -f "$INSTALL_DIR/package-lock.json" ] && cp "$INSTALL_DIR/package-lock.json" "$SCRIPT_DIR/package-lock.json"
-
-    # Clean up temp
-    rm -rf "$INSTALL_DIR"
-
     echo ""
-    echo -e "${GREEN}[OK]${NC} Dependencies installed."
+    echo -e "${GREEN}[OK]${NC} Dependencies installed to $LOCAL_APP_DIR"
 else
     echo -e "${GREEN}[OK]${NC} Dependencies already installed."
 fi
+
+# Tell Node.js where to find modules
+export NODE_PATH="$LOCAL_APP_DIR/node_modules"
 
 # -------------------------------------------------------
 # 3. Create .env from template if needed

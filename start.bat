@@ -75,7 +75,7 @@ powershell -NoProfile -Command ^
     "}"
 
 if %errorlevel% neq 0 (
-    echo [ERROR] Failed to download Node.js. Please install manually from: https://nodejs.org/
+    echo [ERROR] Failed to download Node.js. Please install manually: https://nodejs.org/
     pause
     exit /b 1
 )
@@ -103,27 +103,28 @@ if exist "%RUNTIME_DIR%\node.exe" (
 :node_found
 
 :: -------------------------------------------------------
-:: 2. Install dependencies if needed
+:: 2. Install dependencies
 :: -------------------------------------------------------
-if not exist "%SCRIPT_DIR%node_modules\express" (
+:: Use a PERSISTENT local directory for node_modules to avoid
+:: cloud-sync file-locking issues (Google Drive, OneDrive, Dropbox).
+:: Source lives wherever the user cloned; node_modules lives locally.
+set "LOCAL_APP_DIR=%LOCALAPPDATA%\AIQwhisper"
+if not exist "!LOCAL_APP_DIR!" mkdir "!LOCAL_APP_DIR!"
+
+if not exist "!LOCAL_APP_DIR!\node_modules\express" (
     echo.
     echo [SETUP] Installing dependencies... ^(first run only, may take a minute^)
     echo.
 
-    :: Install to a LOCAL temp directory first to avoid cloud-sync
-    :: file-locking issues (Google Drive, OneDrive, Dropbox, etc.)
-    set "INSTALL_DIR=%TEMP%\aiqwhisper-install"
-    if exist "!INSTALL_DIR!" rmdir /s /q "!INSTALL_DIR!"
-    mkdir "!INSTALL_DIR!"
+    :: Copy package files to local directory
+    copy "%SCRIPT_DIR%package.json" "!LOCAL_APP_DIR!\package.json" >nul
+    if exist "%SCRIPT_DIR%package-lock.json" copy "%SCRIPT_DIR%package-lock.json" "!LOCAL_APP_DIR!\package-lock.json" >nul
 
-    :: Copy package files to temp
-    copy "%SCRIPT_DIR%package.json" "!INSTALL_DIR!\package.json" >nul
-    if exist "%SCRIPT_DIR%package-lock.json" copy "%SCRIPT_DIR%package-lock.json" "!INSTALL_DIR!\package-lock.json" >nul
-
-    :: Run npm install in the local temp directory (no sync interference)
-    :: Add the runtime directory to PATH so native modules can find node.exe
+    :: Ensure node is on PATH for native module builds (better-sqlite3)
     if exist "%RUNTIME_DIR%\node.exe" set "PATH=%RUNTIME_DIR%;!PATH!"
-    pushd "!INSTALL_DIR!"
+
+    :: Run npm install on the local filesystem (no sync interference)
+    pushd "!LOCAL_APP_DIR!"
     call "%NPM_CMD%" install --production
     if !errorlevel! neq 0 (
         echo.
@@ -134,22 +135,14 @@ if not exist "%SCRIPT_DIR%node_modules\express" (
     )
     popd
 
-    :: Copy node_modules back to the project
-    echo [SETUP] Copying dependencies to project...
-    if exist "%SCRIPT_DIR%node_modules" rmdir /s /q "%SCRIPT_DIR%node_modules" >nul 2>&1
-    robocopy "!INSTALL_DIR!\node_modules" "%SCRIPT_DIR%node_modules" /E /NFL /NDL /NJH /NJS /NC /NS /NP >nul
-
-    :: Copy lock file back
-    if exist "!INSTALL_DIR!\package-lock.json" copy "!INSTALL_DIR!\package-lock.json" "%SCRIPT_DIR%package-lock.json" >nul
-
-    :: Clean up temp
-    rmdir /s /q "!INSTALL_DIR!" >nul 2>&1
-
     echo.
-    echo [OK] Dependencies installed.
+    echo [OK] Dependencies installed to !LOCAL_APP_DIR!
 ) else (
     echo [OK] Dependencies already installed.
 )
+
+:: Tell Node.js where to find modules
+set "NODE_PATH=!LOCAL_APP_DIR!\node_modules"
 
 :: -------------------------------------------------------
 :: 3. Create .env from template if needed

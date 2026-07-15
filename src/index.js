@@ -32,7 +32,7 @@ const pkg = require('../package.json');
 /* ------------------------------------------------------------------ */
 
 const database = require('./db/database');
-const RulesEngine = require('./rules/RulesEngine');
+const RulesEngine = require('./analysis/engine');
 
 /* ------------------------------------------------------------------ */
 /*  Middleware                                                        */
