@@ -56,7 +56,6 @@ if [ -z "$NODE_CMD" ]; then
     echo "        This is a one-time download (~25 MB)."
     echo ""
 
-    # Detect OS and architecture
     OS="$(uname -s)"
     ARCH="$(uname -m)"
 
@@ -76,7 +75,6 @@ if [ -z "$NODE_CMD" ]; then
         armv7l)         NODE_ARCH="armv7l" ;;
         *)
             echo -e "${RED}[ERROR]${NC} Unsupported architecture: $ARCH"
-            echo "        Please install Node.js 18+ manually: https://nodejs.org/"
             exit 1
             ;;
     esac
@@ -86,28 +84,22 @@ if [ -z "$NODE_CMD" ]; then
     TEMP_DIR=$(mktemp -d)
 
     echo "        Downloading Node.js v${NODE_VERSION} for ${PLATFORM}-${NODE_ARCH}..."
-    echo "        URL: ${NODE_URL}"
-    echo ""
 
-    # Download using curl or wget
     if command -v curl &> /dev/null; then
         curl -fSL --progress-bar -o "$TEMP_DIR/$NODE_TARBALL" "$NODE_URL"
     elif command -v wget &> /dev/null; then
         wget -q --show-progress -O "$TEMP_DIR/$NODE_TARBALL" "$NODE_URL"
     else
-        echo -e "${RED}[ERROR]${NC} Neither curl nor wget found. Please install Node.js manually."
+        echo -e "${RED}[ERROR]${NC} Neither curl nor wget found."
         exit 1
     fi
 
     echo -e "${GREEN}[OK]${NC} Download complete."
     echo -e "${YELLOW}[SETUP]${NC} Extracting Node.js runtime..."
 
-    # Extract to runtime directory
     mkdir -p "$RUNTIME_DIR"
     tar xzf "$TEMP_DIR/$NODE_TARBALL" -C "$TEMP_DIR"
     cp -r "$TEMP_DIR/node-v${NODE_VERSION}-${PLATFORM}-${NODE_ARCH}/"* "$RUNTIME_DIR/"
-
-    # Clean up
     rm -rf "$TEMP_DIR"
 
     if [ -x "$RUNTIME_DIR/bin/node" ]; then
@@ -116,7 +108,6 @@ if [ -z "$NODE_CMD" ]; then
         echo -e "${GREEN}[OK]${NC} Node.js v${NODE_VERSION} installed to runtime/ directory."
     else
         echo -e "${RED}[ERROR]${NC} Node.js installation failed."
-        echo "        Please install Node.js 18+ manually: https://nodejs.org/"
         exit 1
     fi
 fi
@@ -124,33 +115,38 @@ fi
 # -------------------------------------------------------
 # 2. Install dependencies if needed
 # -------------------------------------------------------
-if [ ! -d "$SCRIPT_DIR/node_modules" ]; then
+if [ ! -d "$SCRIPT_DIR/node_modules/express" ]; then
     echo ""
     echo -e "${YELLOW}[SETUP]${NC} Installing dependencies... (first run only, may take a minute)"
     echo ""
 
-    # Use a local temp cache to avoid file-locking issues on synced
-    # filesystems (Google Drive, OneDrive, Dropbox, iCloud, etc.)
-    NPM_CACHE="${TMPDIR:-/tmp}/aiqwhisper-npm-cache"
-    mkdir -p "$NPM_CACHE"
+    # Install to a LOCAL temp directory first to avoid cloud-sync
+    # file-locking issues (Google Drive, iCloud Drive, Dropbox, etc.)
+    INSTALL_DIR=$(mktemp -d)
+    cp "$SCRIPT_DIR/package.json" "$INSTALL_DIR/package.json"
+    [ -f "$SCRIPT_DIR/package-lock.json" ] && cp "$SCRIPT_DIR/package-lock.json" "$INSTALL_DIR/package-lock.json"
 
-    cd "$SCRIPT_DIR"
-    if ! "$NPM_CMD" install --production --cache "$NPM_CACHE" 2>&1; then
+    # Run npm install in the local temp directory (no sync interference)
+    cd "$INSTALL_DIR"
+    "$NPM_CMD" install --production
+    if [ $? -ne 0 ]; then
         echo ""
-        echo -e "${YELLOW}[WARN]${NC} First install attempt failed. Retrying with clean cache..."
-        "$NPM_CMD" cache clean --force --cache "$NPM_CACHE" 2>/dev/null
-        if ! "$NPM_CMD" install --production --cache "$NPM_CACHE" 2>&1; then
-            echo ""
-            echo -e "${RED}[ERROR]${NC} npm install failed. If running from a cloud-synced folder"
-            echo "        (Google Drive, OneDrive, Dropbox, iCloud), try one of:"
-            echo ""
-            echo "  1. Pause file sync, then run ./start.sh again"
-            echo "  2. Copy this folder to a local path and run from there:"
-            echo "     cp -r . ~/AIQwhisper && cd ~/AIQwhisper && ./start.sh"
-            echo ""
-            exit 1
-        fi
+        echo -e "${RED}[ERROR]${NC} npm install failed. Check your internet connection."
+        rm -rf "$INSTALL_DIR"
+        exit 1
     fi
+
+    # Copy node_modules back to the project
+    echo -e "${YELLOW}[SETUP]${NC} Copying dependencies to project..."
+    rm -rf "$SCRIPT_DIR/node_modules" 2>/dev/null
+    cp -r "$INSTALL_DIR/node_modules" "$SCRIPT_DIR/node_modules"
+
+    # Copy lock file back
+    [ -f "$INSTALL_DIR/package-lock.json" ] && cp "$INSTALL_DIR/package-lock.json" "$SCRIPT_DIR/package-lock.json"
+
+    # Clean up temp
+    rm -rf "$INSTALL_DIR"
+
     echo ""
     echo -e "${GREEN}[OK]${NC} Dependencies installed."
 else
@@ -179,12 +175,12 @@ if [ ! -d "$SCRIPT_DIR/data" ]; then
 fi
 
 # -------------------------------------------------------
-# 5. Start the application
+# 5. Start the application (browser opens automatically)
 # -------------------------------------------------------
 echo ""
 echo "============================================"
 echo -e " ${BOLD}Starting AIQwhisper...${NC}"
-echo -e " Dashboard: ${CYAN}http://localhost:3080${NC}"
+echo -e " Dashboard will open in your browser."
 echo " Press Ctrl+C to stop"
 echo "============================================"
 echo ""

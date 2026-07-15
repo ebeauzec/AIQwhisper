@@ -139,9 +139,20 @@ async function main() {
   /* ---- 10. Start HTTP server ------------------------------------- */
   const server = app.listen(config.port, config.bindAddress, () => {
     printBanner();
-    logger.info(
-      `[boot] AIQwhisper listening on http://${config.bindAddress}:${config.port}`
-    );
+    const url = `http://${config.bindAddress === '0.0.0.0' ? 'localhost' : config.bindAddress}:${config.port}`;
+    logger.info(`[boot] AIQwhisper listening on ${url}`);
+
+    /* ---- 10a. Auto-open browser ---------------------------------- */
+    if (process.env.OPEN_BROWSER !== 'false') {
+      const { exec } = require('child_process');
+      const platform = process.platform;
+      const cmd = platform === 'win32' ? `start "" "${url}"`
+                : platform === 'darwin' ? `open "${url}"`
+                : `xdg-open "${url}" 2>/dev/null || true`;
+      exec(cmd, (err) => {
+        if (err) logger.debug('[boot] Could not auto-open browser:', err.message);
+      });
+    }
   });
 
   /* ---- 11. Start background scheduler ---------------------------- */

@@ -36,7 +36,6 @@ if exist "%RUNTIME_DIR%\node.exe" (
 :: Option B: Check for system-wide Node.js
 where node >nul 2>&1
 if %errorlevel% equ 0 (
-    :: Verify version is 18+
     for /f "tokens=1 delims=." %%a in ('node -v') do set "SYS_VER=%%a"
     set "SYS_VER=!SYS_VER:v=!"
     if !SYS_VER! GEQ 18 (
@@ -55,7 +54,6 @@ echo [SETUP] Node.js not found. Downloading portable runtime...
 echo         This is a one-time download ^(~30 MB^).
 echo.
 
-:: Detect architecture
 set "ARCH=x64"
 if "%PROCESSOR_ARCHITECTURE%"=="ARM64" set "ARCH=arm64"
 
@@ -64,10 +62,7 @@ set "NODE_ZIP=%TEMP%\node-v%NODE_VERSION%-win-%ARCH%.zip"
 set "NODE_EXTRACT=%TEMP%\node-v%NODE_VERSION%-win-%ARCH%"
 
 echo         Downloading Node.js v%NODE_VERSION% for Windows %ARCH%...
-echo         URL: %NODE_URL%
-echo.
 
-:: Download using PowerShell (available on all modern Windows)
 powershell -NoProfile -Command ^
     "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; " ^
     "try { " ^
@@ -80,31 +75,18 @@ powershell -NoProfile -Command ^
     "}"
 
 if %errorlevel% neq 0 (
-    echo.
-    echo [ERROR] Failed to download Node.js. Please install manually from:
-    echo         https://nodejs.org/
-    echo.
+    echo [ERROR] Failed to download Node.js. Please install manually from: https://nodejs.org/
     pause
     exit /b 1
 )
 
-:: Extract using PowerShell
 echo [SETUP] Extracting Node.js runtime...
 powershell -NoProfile -Command ^
     "$ProgressPreference = 'SilentlyContinue'; " ^
     "Expand-Archive -Path '%NODE_ZIP%' -DestinationPath '%TEMP%' -Force"
 
-if %errorlevel% neq 0 (
-    echo [ERROR] Extraction failed.
-    pause
-    exit /b 1
-)
-
-:: Move to runtime directory
 if not exist "%RUNTIME_DIR%" mkdir "%RUNTIME_DIR%"
 xcopy /E /Y /Q "%NODE_EXTRACT%\*" "%RUNTIME_DIR%\" >nul 2>&1
-
-:: Clean up temp files
 del /f /q "%NODE_ZIP%" >nul 2>&1
 rmdir /s /q "%NODE_EXTRACT%" >nul 2>&1
 
@@ -113,8 +95,7 @@ if exist "%RUNTIME_DIR%\node.exe" (
     set "NPM_CMD=%RUNTIME_DIR%\npm.cmd"
     echo [OK] Node.js v%NODE_VERSION% installed to runtime\ directory.
 ) else (
-    echo [ERROR] Node.js installation failed. Please install manually from:
-    echo         https://nodejs.org/
+    echo [ERROR] Node.js installation failed. Please install manually: https://nodejs.org/
     pause
     exit /b 1
 )
@@ -124,37 +105,44 @@ if exist "%RUNTIME_DIR%\node.exe" (
 :: -------------------------------------------------------
 :: 2. Install dependencies if needed
 :: -------------------------------------------------------
-if not exist "%SCRIPT_DIR%node_modules" (
+if not exist "%SCRIPT_DIR%node_modules\express" (
     echo.
     echo [SETUP] Installing dependencies... ^(first run only, may take a minute^)
     echo.
 
-    :: Use a local temp cache to avoid file-locking issues on synced
-    :: filesystems (Google Drive, OneDrive, Dropbox, etc.)
-    set "NPM_CACHE=%TEMP%\aiqwhisper-npm-cache"
-    if not exist "!NPM_CACHE!" mkdir "!NPM_CACHE!"
+    :: Install to a LOCAL temp directory first to avoid cloud-sync
+    :: file-locking issues (Google Drive, OneDrive, Dropbox, etc.)
+    set "INSTALL_DIR=%TEMP%\aiqwhisper-install"
+    if exist "!INSTALL_DIR!" rmdir /s /q "!INSTALL_DIR!"
+    mkdir "!INSTALL_DIR!"
 
-    pushd "%SCRIPT_DIR%"
-    call "%NPM_CMD%" install --production --cache "!NPM_CACHE!"
+    :: Copy package files to temp
+    copy "%SCRIPT_DIR%package.json" "!INSTALL_DIR!\package.json" >nul
+    if exist "%SCRIPT_DIR%package-lock.json" copy "%SCRIPT_DIR%package-lock.json" "!INSTALL_DIR!\package-lock.json" >nul
+
+    :: Run npm install in the local temp directory (no sync interference)
+    pushd "!INSTALL_DIR!"
+    call "%NPM_CMD%" install --production
     if !errorlevel! neq 0 (
         echo.
-        echo [WARN] First install attempt failed. Retrying with clean cache...
-        call "%NPM_CMD%" cache clean --force --cache "!NPM_CACHE!" 2>nul
-        call "%NPM_CMD%" install --production --cache "!NPM_CACHE!"
-        if !errorlevel! neq 0 (
-            echo.
-            echo [ERROR] npm install failed. If you are running from a cloud-synced
-            echo         folder ^(Google Drive, OneDrive, Dropbox^), try one of:
-            echo.
-            echo   1. Pause file sync, then run start.bat again
-            echo   2. Copy this folder to a local path ^(e.g. C:\AIQwhisper^) and run from there
-            echo.
-            popd
-            pause
-            exit /b 1
-        )
+        echo [ERROR] npm install failed. Check your internet connection.
+        popd
+        pause
+        exit /b 1
     )
     popd
+
+    :: Copy node_modules back to the project
+    echo [SETUP] Copying dependencies to project...
+    if exist "%SCRIPT_DIR%node_modules" rmdir /s /q "%SCRIPT_DIR%node_modules" >nul 2>&1
+    robocopy "!INSTALL_DIR!\node_modules" "%SCRIPT_DIR%node_modules" /E /NFL /NDL /NJH /NJS /NC /NS /NP >nul
+
+    :: Copy lock file back
+    if exist "!INSTALL_DIR!\package-lock.json" copy "!INSTALL_DIR!\package-lock.json" "%SCRIPT_DIR%package-lock.json" >nul
+
+    :: Clean up temp
+    rmdir /s /q "!INSTALL_DIR!" >nul 2>&1
+
     echo.
     echo [OK] Dependencies installed.
 ) else (
@@ -183,12 +171,12 @@ if not exist "%SCRIPT_DIR%data" (
 )
 
 :: -------------------------------------------------------
-:: 5. Start the application
+:: 5. Start the application (browser opens automatically)
 :: -------------------------------------------------------
 echo.
 echo ============================================
 echo  Starting AIQwhisper...
-echo  Dashboard: http://localhost:3080
+echo  Dashboard will open in your browser.
 echo  Press Ctrl+C to stop
 echo ============================================
 echo.
