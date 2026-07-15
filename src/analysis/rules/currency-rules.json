@@ -1,0 +1,74 @@
+[
+  {
+    "id": "curr-ontap-not-recommended",
+    "name": "ONTAP Not on Recommended Version",
+    "category": "currency",
+    "platform": "ontap",
+    "severity": "medium",
+    "description": "Detects ONTAP clusters running a software version that is not the currently recommended version. Running non-recommended versions may miss important fixes and features.",
+    "check_query": "SELECT c.system_id, c.name, c.version AS current_version, k.version AS recommended_version FROM ontap_clusters c JOIN kb_software_versions k ON k.platform = 'ontap' AND k.is_recommended = 1 WHERE c.system_id = ? AND c.version != k.version",
+    "remediation_template": "Cluster '{{name}}' is running ONTAP {{current_version}} but the recommended version is {{recommended_version}}. Plan an upgrade to the recommended version for optimal performance, security, and support.",
+    "reference_url": "https://mysupport.netapp.com/matrix/",
+    "enabled": true
+  },
+  {
+    "id": "curr-ontap-end-of-support",
+    "name": "ONTAP Version End of Support",
+    "category": "currency",
+    "platform": "ontap",
+    "severity": "critical",
+    "description": "Detects ONTAP clusters running a version that has reached or will reach end of support within 90 days. End-of-support versions no longer receive security patches or bug fixes.",
+    "check_query": "SELECT c.system_id, c.name, c.version, k.end_of_support FROM ontap_clusters c JOIN kb_software_versions k ON k.platform = 'ontap' AND c.version = k.version WHERE c.system_id = ? AND k.end_of_support IS NOT NULL AND k.end_of_support <= date('now', '+90 days')",
+    "remediation_template": "Cluster '{{name}}' is running ONTAP {{version}} which reaches end of support on {{end_of_support}}. Upgrade immediately to a supported version to maintain security coverage and vendor support.",
+    "reference_url": "https://mysupport.netapp.com/site/info/version-support",
+    "enabled": true
+  },
+  {
+    "id": "curr-sg-not-recommended",
+    "name": "StorageGRID Not on Recommended Version",
+    "category": "currency",
+    "platform": "storagegrid",
+    "severity": "medium",
+    "description": "Detects StorageGRID grids running a software version that is not the currently recommended version.",
+    "check_query": "SELECT g.system_id, g.name, g.version AS current_version, k.version AS recommended_version FROM sg_grids g JOIN kb_software_versions k ON k.platform = 'storagegrid' AND k.is_recommended = 1 WHERE g.system_id = ? AND g.version != k.version",
+    "remediation_template": "Grid '{{name}}' is running StorageGRID {{current_version}} but the recommended version is {{recommended_version}}. Plan an upgrade to benefit from the latest features, performance improvements, and security patches.",
+    "reference_url": "https://mysupport.netapp.com/matrix/",
+    "enabled": true
+  },
+  {
+    "id": "curr-sg-end-of-support",
+    "name": "StorageGRID Version End of Support",
+    "category": "currency",
+    "platform": "storagegrid",
+    "severity": "critical",
+    "description": "Detects StorageGRID grids running a version that has reached or will reach end of support within 90 days.",
+    "check_query": "SELECT g.system_id, g.name, g.version, k.end_of_support FROM sg_grids g JOIN kb_software_versions k ON k.platform = 'storagegrid' AND g.version = k.version WHERE g.system_id = ? AND k.end_of_support IS NOT NULL AND k.end_of_support <= date('now', '+90 days')",
+    "remediation_template": "Grid '{{name}}' is running StorageGRID {{version}} which reaches end of support on {{end_of_support}}. Upgrade immediately to a supported version.",
+    "reference_url": "https://mysupport.netapp.com/site/info/version-support",
+    "enabled": true
+  },
+  {
+    "id": "curr-es-not-recommended",
+    "name": "E-Series Not on Recommended Firmware",
+    "category": "currency",
+    "platform": "eseries",
+    "severity": "medium",
+    "description": "Detects E-Series arrays running firmware that is not the currently recommended version.",
+    "check_query": "SELECT a.system_id, a.name, a.firmware_version AS current_version, k.version AS recommended_version FROM es_arrays a JOIN kb_software_versions k ON k.platform = 'eseries' AND k.is_recommended = 1 WHERE a.system_id = ? AND a.firmware_version != k.version",
+    "remediation_template": "Array '{{name}}' is running firmware {{current_version}} but the recommended version is {{recommended_version}}. Plan a firmware upgrade during a maintenance window.",
+    "reference_url": "https://mysupport.netapp.com/matrix/",
+    "enabled": true
+  },
+  {
+    "id": "curr-es-end-of-support",
+    "name": "E-Series Firmware End of Support",
+    "category": "currency",
+    "platform": "eseries",
+    "severity": "critical",
+    "description": "Detects E-Series arrays running firmware that has reached or will reach end of support within 90 days.",
+    "check_query": "SELECT a.system_id, a.name, a.firmware_version, k.end_of_support FROM es_arrays a JOIN kb_software_versions k ON k.platform = 'eseries' AND a.firmware_version = k.version WHERE a.system_id = ? AND k.end_of_support IS NOT NULL AND k.end_of_support <= date('now', '+90 days')",
+    "remediation_template": "Array '{{name}}' is running firmware {{firmware_version}} which reaches end of support on {{end_of_support}}. Upgrade immediately to a supported firmware version.",
+    "reference_url": "https://mysupport.netapp.com/site/info/version-support",
+    "enabled": true
+  }
+]
