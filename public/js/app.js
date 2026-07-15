@@ -7,7 +7,43 @@ const App = {
   currentView: null,
   refreshTimer: null,
 
-  init() {
+  async init() {
+    // Wait for the backend API to be reachable before routing
+    const appEl = document.getElementById('app');
+    let ready = false;
+    for (let i = 0; i < 15; i++) {
+      try {
+        const r = await fetch('/health', { signal: AbortSignal.timeout(2000) });
+        if (r.ok) { ready = true; break; }
+      } catch (_) { /* server not ready yet */ }
+      // Update the loading message with retry count
+      if (appEl && i > 0) {
+        appEl.innerHTML = `
+          <div class="loading-state">
+            <div class="spinner"></div>
+            <p>Connecting to server… (attempt ${i + 1})</p>
+          </div>`;
+      }
+      await new Promise(r => setTimeout(r, 1000));
+    }
+
+    if (!ready) {
+      if (appEl) {
+        appEl.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">⚠</div>
+            <h2>Cannot Connect to Server</h2>
+            <p>The AIQwhisper backend is not responding. Make sure start.bat is running.</p>
+            <button class="btn btn-primary" onclick="location.reload()">Retry</button>
+          </div>`;
+      }
+      return;
+    }
+
+    // Update status dot to online
+    const dot = document.querySelector('.status-dot');
+    if (dot) dot.classList.add('online');
+
     window.addEventListener('hashchange', () => this.route());
     this.route();
   },
@@ -38,7 +74,7 @@ const App = {
         <div class="empty-state">
           <div class="empty-state-icon">🚧</div>
           <h2>View Not Available</h2>
-          <p>The "${path}" module has not been loaded yet.</p>
+          <p>The "${escapeHtml(path)}" module has not been loaded yet.</p>
           <a href="#/dashboard" class="btn btn-primary">Go to Dashboard</a>
         </div>`;
     }
@@ -66,26 +102,29 @@ const App = {
 };
 
 /* -------------------------------------------------------
- *  API Client
+ *  API Client (all methods have 10s timeout)
  * ------------------------------------------------------- */
+function _timeout(ms) {
+  // Use AbortSignal.timeout if available, otherwise manual AbortController
+  if (typeof AbortSignal.timeout === 'function') return { signal: AbortSignal.timeout(ms) };
+  const c = new AbortController();
+  setTimeout(() => c.abort(), ms);
+  return { signal: c.signal };
+}
+
 const api = {
   async get(path) {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 10000);
-    try {
-      const r = await fetch('/api' + path, { signal: controller.signal });
-      if (!r.ok) throw new Error(`GET ${path}: ${r.status} ${r.statusText}`);
-      return r.json();
-    } finally {
-      clearTimeout(timeout);
-    }
+    const r = await fetch('/api' + path, _timeout(10000));
+    if (!r.ok) throw new Error(`GET ${path}: ${r.status} ${r.statusText}`);
+    return r.json();
   },
 
   async post(path, body) {
     const r = await fetch('/api' + path, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
+      body: JSON.stringify(body),
+      ..._timeout(10000)
     });
     if (!r.ok) throw new Error(`POST ${path}: ${r.status} ${r.statusText}`);
     return r.json();
@@ -95,7 +134,8 @@ const api = {
     const r = await fetch('/api' + path, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
+      body: JSON.stringify(body),
+      ..._timeout(10000)
     });
     if (!r.ok) throw new Error(`PUT ${path}: ${r.status} ${r.statusText}`);
     return r.json();
@@ -105,14 +145,15 @@ const api = {
     const r = await fetch('/api' + path, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
+      body: JSON.stringify(body),
+      ..._timeout(10000)
     });
     if (!r.ok) throw new Error(`PATCH ${path}: ${r.status} ${r.statusText}`);
     return r.json();
   },
 
   async delete(path) {
-    const r = await fetch('/api' + path, { method: 'DELETE' });
+    const r = await fetch('/api' + path, { method: 'DELETE', ..._timeout(10000) });
     if (!r.ok) throw new Error(`DELETE ${path}: ${r.status} ${r.statusText}`);
     if (r.status === 204) return null;
     return r.json();
