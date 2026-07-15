@@ -70,9 +70,15 @@ const App = {
  * ------------------------------------------------------- */
 const api = {
   async get(path) {
-    const r = await fetch('/api' + path);
-    if (!r.ok) throw new Error(`GET ${path}: ${r.status} ${r.statusText}`);
-    return r.json();
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
+    try {
+      const r = await fetch('/api' + path, { signal: controller.signal });
+      if (!r.ok) throw new Error(`GET ${path}: ${r.status} ${r.statusText}`);
+      return r.json();
+    } finally {
+      clearTimeout(timeout);
+    }
   },
 
   async post(path, body) {

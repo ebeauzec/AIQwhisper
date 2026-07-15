@@ -155,6 +155,41 @@ async function main() {
     }
   });
 
+  /* ---- 10b. Handle port conflicts -------------------------------- */
+  server.on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+      logger.error(`[boot] Port ${config.port} is already in use.`);
+      logger.error('[boot] Attempting to stop the previous instance...');
+      const { execSync } = require('child_process');
+      try {
+        if (process.platform === 'win32') {
+          const out = execSync(
+            `netstat -aon | findstr "LISTENING" | findstr ":${config.port} "`,
+            { encoding: 'utf8', timeout: 5000 }
+          );
+          const pid = out.trim().split(/\s+/).pop();
+          if (pid && pid !== '0') {
+            execSync(`taskkill /F /PID ${pid}`, { timeout: 5000 });
+            logger.info(`[boot] Killed previous process (PID ${pid}). Retrying in 2s...`);
+          }
+        } else {
+          execSync(`lsof -ti :${config.port} | xargs kill -9 2>/dev/null || true`, { timeout: 5000 });
+          logger.info('[boot] Killed previous process. Retrying in 2s...');
+        }
+        setTimeout(() => {
+          server.listen(config.port, config.bindAddress);
+        }, 2000);
+      } catch (killErr) {
+        logger.error('[boot] Could not auto-kill previous instance:', killErr.message);
+        logger.error(`[boot] Manually stop the process using port ${config.port} and try again.`);
+        process.exit(1);
+      }
+    } else {
+      logger.error('[boot] Server error:', err);
+      process.exit(1);
+    }
+  });
+
   /* ---- 11. Start background scheduler ---------------------------- */
   poller.start();
   logger.info('[boot] Polling scheduler started');
