@@ -57,6 +57,7 @@ const capacityRouter = require('./routes/capacity');
 const reportsRouter = require('./routes/reports');
 const learningRouter = require('./routes/learning');
 const catalogRouter = require('./routes/catalog');
+const demoRouter = require('./routes/demo');
 
 /* ------------------------------------------------------------------ */
 /*  Scheduler                                                         */
@@ -127,6 +128,7 @@ async function main() {
   app.use('/api/reports', reportsRouter);
   app.use('/api/learning', learningRouter);
   app.use('/api/catalog', catalogRouter);
+  app.use('/api/demo', demoRouter);
 
   /* ---- 8. SPA fallback (client-side routing) --------------------- */
   app.get('*', (_req, res) => {

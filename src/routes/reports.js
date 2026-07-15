@@ -261,4 +261,31 @@ router.get('/:id', (req, res, next) => {
   }
 });
 
+// ---------------------------------------------------------------------------
+// DELETE /:id – Delete a report
+// ---------------------------------------------------------------------------
+
+/**
+ * @route   DELETE /api/reports/:id
+ * @desc    Delete a report by ID.
+ * @param   {string} id – Report primary key.
+ * @returns {void} 204 on success
+ */
+router.delete('/:id', (req, res, next) => {
+  try {
+    const db = getDb();
+    const id = Number(req.params.id);
+
+    const report = db.prepare('SELECT id FROM reports WHERE id = @id').get({ id });
+    if (!report) {
+      return res.status(404).json({ error: 'Report not found.' });
+    }
+
+    db.prepare('DELETE FROM reports WHERE id = @id').run({ id });
+    res.status(204).end();
+  } catch (err) {
+    next(err);
+  }
+});
+
 module.exports = router;
