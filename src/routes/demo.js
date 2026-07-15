@@ -73,38 +73,38 @@ router.post('/seed', (req, res, next) => {
         {sid:sys2,name:'vol_engineering_dp',svm:'svm_dr',state:'online',type:'dp',t:20*TB,u:16.5*TB},
         {sid:sys2,name:'vol_backup_weekly',svm:'svm_dr',state:'online',type:'rw',t:30*TB,u:18*TB},
       ];
-      for(const v of vols) db.prepare(`INSERT INTO ontap_volumes (system_id,name,svm_name,state,type,total_bytes,used_bytes,available_bytes,created_at,updated_at) VALUES (@sid,@name,@svm,@state,@type,@t,@u,@a,@now,@now)`).run({sid:v.sid,name:v.name,svm:v.svm,state:v.state,type:v.type,t:Math.round(v.t),u:Math.round(v.u),a:Math.round(v.t-v.u),now});
+      for(const v of vols) db.prepare(`INSERT INTO ontap_volumes (system_id,name,state,type,size_bytes,used_bytes,available_bytes,created_at,updated_at) VALUES (@sid,@name,@state,@type,@t,@u,@a,@now,@now)`).run({sid:v.sid,name:v.name,state:v.state,type:v.type,t:Math.round(v.t),u:Math.round(v.u),a:Math.round(v.t-v.u),now});
 
       // DISKS
-      for(let i=1;i<=24;i++) db.prepare(`INSERT INTO ontap_disks (system_id,name,media_type,status,capacity_bytes,platform,created_at,updated_at) VALUES (@sid,@n,'SSD',@st,@c,'AFF-A400',@now,@now)`).run({sid:sys1,n:`1.0.${i}`,st:i===17?'broken':'present',c:3840*GB,now});
-      for(let i=1;i<=36;i++) db.prepare(`INSERT INTO ontap_disks (system_id,name,media_type,status,capacity_bytes,platform,created_at,updated_at) VALUES (@sid,@n,'SAS','present',@c,'FAS8200',@now,@now)`).run({sid:sys2,n:`1.0.${i}`,c:4000*GB,now});
+      for(let i=1;i<=24;i++) db.prepare(`INSERT INTO ontap_disks (system_id,name,type,state,usable_size_bytes,created_at,updated_at) VALUES (@sid,@n,'SSD',@st,@c,@now,@now)`).run({sid:sys1,n:`1.0.${i}`,st:i===17?'broken':'present',c:3840*GB,now});
+      for(let i=1;i<=36;i++) db.prepare(`INSERT INTO ontap_disks (system_id,name,type,state,usable_size_bytes,created_at,updated_at) VALUES (@sid,@n,'SAS','present',@c,@now,@now)`).run({sid:sys2,n:`1.0.${i}`,c:4000*GB,now});
 
       // LUNS
-      db.prepare(`INSERT INTO ontap_luns (system_id,name,serial_number,os_type,total_bytes,status,created_at,updated_at) VALUES (@sid,'/vol/vol_oracle_data/lun_oracle','LUN-ORA-001','linux',@s,'online',@now,@now)`).run({sid:sys1,s:3*TB,now});
-      db.prepare(`INSERT INTO ontap_luns (system_id,name,serial_number,os_type,total_bytes,status,created_at,updated_at) VALUES (@sid,'/vol/vol_sql_data/lun_sql','LUN-SQL-001','windows_2008',@s,'online',@now,@now)`).run({sid:sys1,s:5*TB,now});
-      db.prepare(`INSERT INTO ontap_luns (system_id,name,serial_number,os_type,total_bytes,status,created_at,updated_at) VALUES (@sid,'/vol/vol_vmware_ds1/lun_vmware','LUN-VMW-001','vmware',@s,'online',@now,@now)`).run({sid:sys1,s:10*TB,now});
+      db.prepare(`INSERT INTO ontap_luns (system_id,name,serial_number,os_type,size_bytes,state,created_at,updated_at) VALUES (@sid,'/vol/vol_oracle_data/lun_oracle','LUN-ORA-001','linux',@s,'online',@now,@now)`).run({sid:sys1,s:3*TB,now});
+      db.prepare(`INSERT INTO ontap_luns (system_id,name,serial_number,os_type,size_bytes,state,created_at,updated_at) VALUES (@sid,'/vol/vol_sql_data/lun_sql','LUN-SQL-001','windows_2008',@s,'online',@now,@now)`).run({sid:sys1,s:5*TB,now});
+      db.prepare(`INSERT INTO ontap_luns (system_id,name,serial_number,os_type,size_bytes,state,created_at,updated_at) VALUES (@sid,'/vol/vol_vmware_ds1/lun_vmware','LUN-VMW-001','vmware',@s,'online',@now,@now)`).run({sid:sys1,s:10*TB,now});
 
       // STORAGEGRID
-      db.prepare(`INSERT INTO sg_grids (system_id,name,version,node_count,site_count,created_at,updated_at) VALUES (@sid,'sg-archive-grid','11.8.0',6,2,@now,@now)`).run({sid:sys3,now});
-      for(const n of ['sg-admin-01','sg-gw-01','sg-gw-02','sg-store-01','sg-store-02','sg-store-03']){const tp=n.includes('admin')?'admin':n.includes('gw')?'gateway':'storage';db.prepare(`INSERT INTO sg_nodes (system_id,name,type,status,site,created_at,updated_at) VALUES (@sid,@name,@type,'connected','Site-A',@now,@now)`).run({sid:sys3,name:n,type:tp,now});}
+      db.prepare(`INSERT INTO sg_grids (system_id,name,version,created_at,updated_at) VALUES (@sid,'sg-archive-grid','11.8.0',@now,@now)`).run({sid:sys3,now});
+      for(const n of ['sg-admin-01','sg-gw-01','sg-gw-02','sg-store-01','sg-store-02','sg-store-03']){const tp=n.includes('admin')?'admin':n.includes('gw')?'gateway':'storage';db.prepare(`INSERT INTO sg_nodes (system_id,name,type,state,site,created_at,updated_at) VALUES (@sid,@name,@type,'connected','Site-A',@now,@now)`).run({sid:sys3,name:n,type:tp,now});}
       for(const b of [{name:'finance-archive',region:'us-east-1',obj:12450000,bytes:85*TB},{name:'media-assets',region:'us-east-1',obj:2340000,bytes:120*TB},{name:'compliance-vault',region:'eu-west-1',obj:890000,bytes:42*TB},{name:'backup-offsite',region:'us-east-1',obj:5670000,bytes:200*TB}])
         db.prepare(`INSERT INTO sg_buckets (system_id,name,region,object_count,data_bytes,created_at,updated_at) VALUES (@sid,@name,@region,@obj,@bytes,@now,@now)`).run({sid:sys3,name:b.name,region:b.region,obj:b.obj,bytes:Math.round(b.bytes),now});
 
       // E-SERIES
       db.prepare(`INSERT INTO es_arrays (system_id,name,status,firmware_version,drive_count,created_at,updated_at) VALUES (@sid,'eseries-san-01','needsAttention','11.80.1',48,@now,@now)`).run({sid:sys4,now});
-      for(let i=1;i<=48;i++) db.prepare(`INSERT INTO es_drives (system_id,name,status,media_type,capacity_bytes,created_at,updated_at) VALUES (@sid,@n,@st,'ssd',@c,@now,@now)`).run({sid:sys4,n:`Drive ${i}`,st:i===33?'failed':'optimal',c:1920*GB,now});
+      for(let i=1;i<=48;i++) db.prepare(`INSERT INTO es_drives (system_id,status,media_type,capacity_bytes,created_at,updated_at) VALUES (@sid,@st,'ssd',@c,@now,@now)`).run({sid:sys4,st:i===33?'failed':'optimal',c:1920*GB,now});
 
       // ISSUES
       const issues = [
         {sid:sys1,rt:'aggregate',ri:'aggr2_prod_ssd',sev:'critical',cat:'capacity',title:'Aggregate utilization exceeds 84%',desc:'aggr2_prod_ssd is at 84% utilization. Immediate capacity expansion recommended.'},
         {sid:sys1,rt:'volume',ri:'vol_media_archive',sev:'critical',cat:'capacity',title:'Volume near capacity: 94.7% used',desc:'vol_media_archive has only 800 GB free. Capacity exhausted in ~12 days.'},
         {sid:sys1,rt:'disk',ri:'1.0.17',sev:'high',cat:'hardware',title:'Failed disk detected',desc:'Disk 1.0.17 marked as broken. RAID reconstruction active. Replace within 48h.'},
-        {sid:sys1,rt:'volume',ri:'vol_engineering',sev:'warning',cat:'capacity',title:'Volume utilization above 80%',desc:'vol_engineering at 82.5%. Plan expansion within 30 days.'},
-        {sid:sys1,rt:'volume',ri:'vol_vmware_ds1',sev:'warning',cat:'capacity',title:'VMware datastore approaching threshold',desc:'vol_vmware_ds1 at 81.7%. VMware alarms trigger at 85%.'},
-        {sid:sys2,rt:'cluster',ri:'ontap-dr-01',sev:'warning',cat:'software',title:'ONTAP version below recommended',desc:'Running 9.13.1P6, recommended 9.14.1+.'},
+        {sid:sys1,rt:'volume',ri:'vol_engineering',sev:'medium',cat:'capacity',title:'Volume utilization above 80%',desc:'vol_engineering at 82.5%. Plan expansion within 30 days.'},
+        {sid:sys1,rt:'volume',ri:'vol_vmware_ds1',sev:'medium',cat:'capacity',title:'VMware datastore approaching threshold',desc:'vol_vmware_ds1 at 81.7%. VMware alarms trigger at 85%.'},
+        {sid:sys2,rt:'cluster',ri:'ontap-dr-01',sev:'medium',cat:'software',title:'ONTAP version below recommended',desc:'Running 9.13.1P6, recommended 9.14.1+.'},
         {sid:sys1,rt:'snapmirror',ri:'svm_prod_nas:vol_finance_data',sev:'high',cat:'protection',title:'SnapMirror lag exceeds 4 hours',desc:'Replication lagging 6 hours. RPO target is 1 hour.'},
         {sid:sys4,rt:'drive',ri:'Drive 33',sev:'critical',cat:'hardware',title:'E-Series drive failure',desc:'Drive 33 failed. Reconstruction in progress, performance degraded.'},
-        {sid:sys4,rt:'array',ri:'eseries-san-01',sev:'warning',cat:'software',title:'SANtricity OS update available',desc:'Firmware 11.80.2 available with critical fixes. Current: 11.80.1.'},
+        {sid:sys4,rt:'array',ri:'eseries-san-01',sev:'medium',cat:'software',title:'SANtricity OS update available',desc:'Firmware 11.80.2 available with critical fixes. Current: 11.80.1.'},
         {sid:sys3,rt:'bucket',ri:'backup-offsite',sev:'info',cat:'capacity',title:'Object count growing rapidly',desc:'Adding ~50K objects/day. Projected 10M in 90 days.'},
         {sid:sys1,rt:'node',ri:'ontap-prod-01-01',sev:'info',cat:'configuration',title:'NTP skew detected',desc:'Clock drift of 1.2s detected. Consider forcing NTP sync.'},
         {sid:sys3,rt:'certificate',ri:'sg-admin-01',sev:'medium',cat:'security',title:'TLS certificate expires in 30 days',desc:'Admin node TLS cert expiring soon. Renew to avoid disruption.'},
@@ -133,15 +133,15 @@ router.post('/seed', (req, res, next) => {
 
       // RAW METRICS (24h of perf data)
       for(let h=24;h>=0;h--){const ts=hoursAgo(h);
-        db.prepare(`INSERT INTO metrics_raw (system_id,metric_name,metric_value,unit,collected_at,created_at) VALUES (@sid,'iops_total',@v,'ops/s',@ts,@now)`).run({sid:sys1,v:25000+Math.floor(Math.random()*15000),ts,now});
-        db.prepare(`INSERT INTO metrics_raw (system_id,metric_name,metric_value,unit,collected_at,created_at) VALUES (@sid,'latency_avg',@v,'ms',@ts,@now)`).run({sid:sys1,v:parseFloat((0.8+Math.random()*1.5).toFixed(2)),ts,now});
-        db.prepare(`INSERT INTO metrics_raw (system_id,metric_name,metric_value,unit,collected_at,created_at) VALUES (@sid,'throughput_total',@v,'MB/s',@ts,@now)`).run({sid:sys1,v:800+Math.floor(Math.random()*600),ts,now});
-        db.prepare(`INSERT INTO metrics_raw (system_id,metric_name,metric_value,unit,collected_at,created_at) VALUES (@sid,'cpu_utilization',@v,'percent',@ts,@now)`).run({sid:sys1,v:parseFloat((35+Math.random()*30).toFixed(1)),ts,now});
+        db.prepare(`INSERT INTO metrics_raw (system_id,resource_type,resource_id,metric_name,metric_value,unit,timestamp,created_at) VALUES (@sid,'cluster','ontap-prod-01','iops_total',@v,'ops/s',@ts,@now)`).run({sid:sys1,v:25000+Math.floor(Math.random()*15000),ts,now});
+        db.prepare(`INSERT INTO metrics_raw (system_id,resource_type,resource_id,metric_name,metric_value,unit,timestamp,created_at) VALUES (@sid,'cluster','ontap-prod-01','latency_avg',@v,'ms',@ts,@now)`).run({sid:sys1,v:parseFloat((0.8+Math.random()*1.5).toFixed(2)),ts,now});
+        db.prepare(`INSERT INTO metrics_raw (system_id,resource_type,resource_id,metric_name,metric_value,unit,timestamp,created_at) VALUES (@sid,'cluster','ontap-prod-01','throughput_total',@v,'MB/s',@ts,@now)`).run({sid:sys1,v:800+Math.floor(Math.random()*600),ts,now});
+        db.prepare(`INSERT INTO metrics_raw (system_id,resource_type,resource_id,metric_name,metric_value,unit,timestamp,created_at) VALUES (@sid,'cluster','ontap-prod-01','cpu_utilization',@v,'percent',@ts,@now)`).run({sid:sys1,v:parseFloat((35+Math.random()*30).toFixed(1)),ts,now});
       }
 
       // EMS EVENTS
       const events=[{sid:sys1,sev:'error',name:'raid.disk.broken',msg:'Disk 1.0.17: broken disk detected'},{sid:sys1,sev:'warning',name:'wafl.vol.autoSize.done',msg:'vol_engineering: autosize triggered'},{sid:sys1,sev:'info',name:'snapmirror.check',msg:'SnapMirror check completed'},{sid:sys1,sev:'warning',name:'scsiblade.lunThresholdReached',msg:'LUN approaching space threshold'},{sid:sys2,sev:'info',name:'cf.fsm.takeoverImpossible',msg:'Partner firmware mismatch'},{sid:sys1,sev:'error',name:'callhome.battery.low',msg:'NVRAM battery voltage low on node ontap-prod-01-02'}];
-      for(let i=0;i<events.length;i++){const e=events[i];db.prepare(`INSERT INTO ontap_ems_events (system_id,event_name,severity,message,source,timestamp,created_at) VALUES (@sid,@name,@sev,@msg,'EMS',@ts,@now)`).run({sid:e.sid,name:e.name,sev:e.sev,msg:e.msg,ts:hoursAgo(i*3+1),now});}
+      for(let i=0;i<events.length;i++){const e=events[i];db.prepare(`INSERT INTO ontap_ems_events (system_id,message_name,severity,message_text,source,time,created_at) VALUES (@sid,@name,@sev,@msg,'EMS',@ts,@now)`).run({sid:e.sid,name:e.name,sev:e.sev,msg:e.msg,ts:hoursAgo(i*3+1),now});}
 
       logger.info('[demo] Demo data seeded: 4 systems, 12 issues, metrics, events');
     })();
