@@ -18,6 +18,45 @@ const DashboardView = {
       const healthData = health.data || [];
       const eventList = events.data || [];
 
+      // If no systems configured, show welcome screen
+      const totalSystems = s.systems?.total ?? s.total_systems ?? 0;
+      if (totalSystems === 0) {
+        container.innerHTML = `
+          <div class="page-header">
+            <h2>Welcome to AIQwhisper</h2>
+            <span class="subtitle">On-Premises NetApp Infrastructure Manager</span>
+          </div>
+          <div class="card" style="text-align:center; padding:48px 32px;">
+            <div style="font-size:3rem; margin-bottom:16px;">🚀</div>
+            <h2 style="color:var(--text-primary); margin-bottom:12px;">Get Started</h2>
+            <p style="color:var(--text-secondary); max-width:500px; margin:0 auto 24px;">
+              No storage systems have been added yet. Add your first ONTAP, StorageGRID,
+              or E-Series system to start monitoring.
+            </p>
+            <a href="#/systems" class="btn btn-primary" style="display:inline-flex; align-items:center; gap:8px; font-size:1rem; padding:12px 28px;">
+              <span>⚙</span> Add Your First System
+            </a>
+            <div style="margin-top:32px; display:flex; gap:24px; justify-content:center; flex-wrap:wrap;">
+              <div class="card" style="padding:20px; min-width:160px; text-align:center;">
+                <div style="font-size:1.5rem; margin-bottom:8px;">📊</div>
+                <strong style="color:var(--text-primary);">151 Rules</strong>
+                <p style="color:var(--text-muted); font-size:0.8rem;">Best-practice checks loaded</p>
+              </div>
+              <div class="card" style="padding:20px; min-width:160px; text-align:center;">
+                <div style="font-size:1.5rem; margin-bottom:8px;">🔍</div>
+                <strong style="color:var(--text-primary);">3 Platforms</strong>
+                <p style="color:var(--text-muted); font-size:0.8rem;">ONTAP · StorageGRID · E-Series</p>
+              </div>
+              <div class="card" style="padding:20px; min-width:160px; text-align:center;">
+                <div style="font-size:1.5rem; margin-bottom:8px;">📈</div>
+                <strong style="color:var(--text-primary);">6-Month History</strong>
+                <p style="color:var(--text-muted); font-size:0.8rem;">Performance & capacity trending</p>
+              </div>
+            </div>
+          </div>`;
+        return;
+      }
+
       container.innerHTML = `
         <div class="page-header">
           <h2>Dashboard</h2>
@@ -40,10 +79,10 @@ const DashboardView = {
         </div>`;
 
       // ---- Metric cards ----
-      const criticalCount = s.critical_issues ?? s.critical ?? 0;
-      const warningCount = s.warning_issues ?? s.warnings ?? 0;
-      const totalSystems = s.total_systems ?? healthData.length ?? 0;
-      const capacityWarnings = s.capacity_warnings ?? s.capacity_at_risk ?? 0;
+      const criticalCount = s.issues?.critical ?? s.critical_issues ?? 0;
+      const warningCount = s.issues?.warning ?? s.warning_issues ?? 0;
+      /* totalSystems already computed above for the welcome check */
+      const capacityWarnings = s.capacityWarnings ?? s.capacity_warnings ?? 0;
 
       const cards = [
         { label: 'Total Systems', value: formatNumber(totalSystems), icon: '⚙', cls: 'metric-info' },
