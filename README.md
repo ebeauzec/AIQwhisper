@@ -104,9 +104,10 @@ Think of it as **your own private Active IQ Unified Manager** — without the he
 ## Quick Start
 
 ### Prerequisites
-- **Node.js 18+** ([download](https://nodejs.org/))
 - Network access to your NetApp storage systems
 - Credentials for each system (admin or read-only accounts)
+
+> **No manual software installation required.** The startup script automatically downloads and bundles all dependencies (including a portable Node.js runtime) on first run.
 
 ### Installation & Launch
 
@@ -126,11 +127,10 @@ chmod +x start.sh
 ```
 
 That's it. The startup script automatically:
-- ✅ Verifies Node.js 18+ is installed
-- ✅ Installs dependencies (`npm install`) on first run
+- ✅ Downloads a portable Node.js runtime if not already installed
+- ✅ Installs all npm dependencies on first run
 - ✅ Creates default configuration from `.env.example`
-- ✅ Creates the data directory
-- ✅ Initializes the database
+- ✅ Creates the data directory and initializes the database
 - ✅ Starts the server at **http://localhost:3080**
 
 ### First Steps

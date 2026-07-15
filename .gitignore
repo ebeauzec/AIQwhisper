@@ -39,3 +39,6 @@ coverage/
 # Temporary
 tmp/
 temp/
+
+# Bundled runtime (auto-downloaded Node.js)
+runtime/
