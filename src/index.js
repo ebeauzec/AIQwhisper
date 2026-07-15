@@ -82,8 +82,8 @@ const logger = config.logger || console;
  */
 async function main() {
   /* ---- 1. Initialise database ------------------------------------ */
-  await database.initialize();
-  logger.info('[boot] Database initialised');
+  const db = database.initialize();
+  logger.info(`[boot] Database initialised at ${db.name}`);
 
   /* ---- 2. Seed built-in rules ------------------------------------ */
   const rulesEngine = new RulesEngine();
@@ -94,9 +94,9 @@ async function main() {
   const app = express();
 
   /* ---- 4. Apply middleware (order matters) ------------------------ */
-  app.use(corsMiddleware);
+  app.use(corsMiddleware());
   app.use(express.json({ limit: '10mb' }));
-  app.use(loggingMiddleware);
+  app.use(loggingMiddleware());
 
   /* ---- 5. Static files ------------------------------------------- */
   app.use(express.static(path.join(__dirname, '..', 'public')));

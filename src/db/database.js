@@ -3,13 +3,34 @@
 const Database = require('better-sqlite3');
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 
 // ---------------------------------------------------------------------------
 // Configuration
 // ---------------------------------------------------------------------------
 
-const DATA_DIR = path.resolve(__dirname, '..', '..', 'data');
-const DB_PATH = path.join(DATA_DIR, 'aiqwhisper.db');
+/**
+ * Resolve a safe local path for the database that will NOT be synced
+ * by cloud storage agents (Google Drive, OneDrive, Dropbox, iCloud).
+ * better-sqlite3 uses synchronous file I/O + file locks that conflict
+ * with cloud sync, so the DB must live on a local, non-synced filesystem.
+ */
+function resolveLocalDataDir() {
+  // Allow explicit override via environment or .env
+  if (process.env.DB_PATH) {
+    return path.dirname(path.resolve(process.env.DB_PATH));
+  }
+  // Platform-appropriate local app data directory
+  if (process.platform === 'win32') {
+    return path.join(process.env.LOCALAPPDATA || path.join(os.homedir(), 'AppData', 'Local'), 'AIQwhisper', 'data');
+  } else if (process.platform === 'darwin') {
+    return path.join(os.homedir(), 'Library', 'Application Support', 'AIQwhisper', 'data');
+  }
+  return path.join(process.env.XDG_DATA_HOME || path.join(os.homedir(), '.local', 'share'), 'AIQwhisper', 'data');
+}
+
+const DATA_DIR = resolveLocalDataDir();
+const DB_PATH = process.env.DB_PATH ? path.resolve(process.env.DB_PATH) : path.join(DATA_DIR, 'aiqwhisper.db');
 const SCHEMA_PATH = path.join(__dirname, 'schema.sql');
 
 // ---------------------------------------------------------------------------
