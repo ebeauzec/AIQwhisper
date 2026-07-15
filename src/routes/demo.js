@@ -123,13 +123,28 @@ router.post('/seed', (req, res, next) => {
         {sid:sys1,rt:'aggregate',ri:'aggr2_prod_ssd',rn:'aggr2_prod_ssd',cur:42*TB,growth:50*GB,days:164,conf:87},
         {sid:sys1,rt:'volume',ri:'vol_engineering',rn:'vol_engineering',cur:Math.round(16.5*TB),growth:30*GB,days:122,conf:78},
         {sid:sys1,rt:'volume',ri:'vol_vmware_ds1',rn:'vol_vmware_ds1',cur:Math.round(9.8*TB),growth:25*GB,days:92,conf:81},
+        {sid:sys3,rt:'bucket',ri:'backup-offsite',rn:'backup-offsite',cur:200*TB,growth:80*GB,days:3750,conf:65},
+        {sid:sys3,rt:'bucket',ri:'media-assets',rn:'media-assets',cur:120*TB,growth:40*GB,days:2000,conf:72},
+        {sid:sys4,rt:'array',ri:'eseries-san-01',rn:'eseries-san-01',cur:54*TB,growth:10*GB,days:3600,conf:60},
       ]) {
         const fd=new Date(Date.now()+p.days*86400000).toISOString().split('T')[0];
         db.prepare(`INSERT INTO capacity_projections (system_id,resource_type,resource_id,resource_name,current_used_bytes,growth_rate_bytes_per_day,projected_full_date,confidence_pct,analysis_timestamp,days_until_full,created_at) VALUES (@sid,@rt,@ri,@rn,@cur,@growth,@fd,@conf,@now,@days,@now)`).run({sid:p.sid,rt:p.rt,ri:p.ri,rn:p.rn,cur:p.cur,growth:p.growth,fd,conf:p.conf,days:p.days,now});
       }
 
-      // CAPACITY SNAPSHOTS (30 days of trend data)
-      for(let d=30;d>=0;d--){const ts=daysAgo(d);db.prepare(`INSERT INTO capacity_snapshots (system_id,resource_type,resource_id,resource_name,total_bytes,used_bytes,available_bytes,utilization_pct,snapshot_timestamp,created_at) VALUES (@sid,'aggregate','aggr1_prod_ssd','aggr1_prod_ssd',@t,@u,@a,@p,@ts,@now)`).run({sid:sys1,t:50*TB,u:Math.round((35+d*0.07)*TB),a:Math.round((15-d*0.07)*TB),p:70+d*0.14,ts,now});}
+      // CAPACITY SNAPSHOTS (30 days of trend data for all systems)
+      const snapInsert = db.prepare(`INSERT INTO capacity_snapshots (system_id,resource_type,resource_id,resource_name,total_bytes,used_bytes,available_bytes,utilization_pct,snapshot_timestamp,created_at) VALUES (@sid,@rt,@ri,@rn,@t,@u,@a,@p,@ts,@now)`);
+      for(let d=30;d>=0;d--){const ts=daysAgo(d);
+        // ONTAP Prod aggregates
+        snapInsert.run({sid:sys1,rt:'aggregate',ri:'aggr1_prod_ssd',rn:'aggr1_prod_ssd',t:50*TB,u:Math.round((35+d*0.07)*TB),a:Math.round((15-d*0.07)*TB),p:70+d*0.14,ts,now});
+        snapInsert.run({sid:sys1,rt:'aggregate',ri:'aggr2_prod_ssd',rn:'aggr2_prod_ssd',t:50*TB,u:Math.round((42+d*0.05)*TB),a:Math.round((8-d*0.05)*TB),p:84+d*0.1,ts,now});
+        // ONTAP DR aggregates
+        snapInsert.run({sid:sys2,rt:'aggregate',ri:'aggr1_dr_sas',rn:'aggr1_dr_sas',t:80*TB,u:Math.round((52+d*0.04)*TB),a:Math.round((28-d*0.04)*TB),p:65+d*0.05,ts,now});
+        // StorageGRID
+        snapInsert.run({sid:sys3,rt:'bucket',ri:'backup-offsite',rn:'backup-offsite',t:500*TB,u:Math.round((200+d*1.5)*TB),a:Math.round((300-d*1.5)*TB),p:40+d*0.3,ts,now});
+        snapInsert.run({sid:sys3,rt:'bucket',ri:'media-assets',rn:'media-assets',t:200*TB,u:Math.round((120+d*0.8)*TB),a:Math.round((80-d*0.8)*TB),p:60+d*0.4,ts,now});
+        // E-Series
+        snapInsert.run({sid:sys4,rt:'array',ri:'eseries-san-01',rn:'eseries-san-01',t:90*TB,u:Math.round((54+d*0.1)*TB),a:Math.round((36-d*0.1)*TB),p:60+d*0.11,ts,now});
+      }
 
       // RAW METRICS (24h of perf data for all systems)
       const metricInsert = db.prepare(`INSERT INTO metrics_raw (system_id,resource_type,resource_id,metric_name,metric_value,unit,timestamp,created_at) VALUES (@sid,@rt,@ri,@mn,@mv,@unit,@ts,@now)`);

@@ -211,9 +211,29 @@ router.get('/svms', inventoryHandler('ontap_svms'));
 
 /**
  * @route GET /api/inventory/grids
- * @desc  Return all StorageGRID grids.  Filterable by ?system_id.
+ * @desc  Return all StorageGRID grids with node/site counts.  Filterable by ?system_id.
  */
-router.get('/grids', inventoryHandler('sg_grids'));
+router.get('/grids', (req, res, next) => {
+  try {
+    const db = getDb();
+    const sysFilter = req.query.system_id ? 'WHERE g.system_id = @system_id' : '';
+    const params = req.query.system_id ? { system_id: Number(req.query.system_id) } : {};
+    const sql = `
+      SELECT g.*,
+             COALESCE(n.node_count, 0) AS node_count,
+             COALESCE(n.site_count, 0) AS site_count
+      FROM sg_grids g
+      LEFT JOIN (
+        SELECT system_id, COUNT(*) AS node_count, COUNT(DISTINCT site) AS site_count
+        FROM sg_nodes GROUP BY system_id
+      ) n ON n.system_id = g.system_id
+      ${sysFilter}
+      ORDER BY g.id
+    `;
+    const data = db.prepare(sql).all(params);
+    res.json({ data, count: data.length });
+  } catch (err) { next(err); }
+});
 
 /**
  * @route GET /api/inventory/buckets

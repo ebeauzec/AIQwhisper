@@ -154,7 +154,7 @@ const PerformanceView = {
             const available = resource.metric_names || [];
             if (available.length && !available.includes(metric)) return null;
             const res = await api.get(`/performance/${this.systemId}/timeseries?resource_type=${this.resourceType}&resource_id=${encodeURIComponent(resource.resource_id)}&metric_name=${metric}&start=${start}&end=${end}&tier=${tier}`);
-            return { label: metric.replace('_', ' '), yKey: 'metric_value', data: res.data || [], color: undefined };
+            return { label: metric.replace('_', ' '), yKey: 'value', data: res.data || [], color: undefined };
           } catch (_) { return null; }
         }));
 
