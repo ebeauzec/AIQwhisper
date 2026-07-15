@@ -98,7 +98,16 @@ router.get('/nodes', inventoryHandler('ontap_nodes'));
  * @route GET /api/inventory/aggregates
  * @desc  Return all ONTAP aggregates.  Filterable by ?system_id.
  */
-router.get('/aggregates', inventoryHandler('ontap_aggregates'));
+router.get('/aggregates', (req, res, next) => {
+  try {
+    const db = getDb();
+    const sysFilter = req.query.system_id ? 'WHERE system_id = @system_id' : '';
+    const params = req.query.system_id ? { system_id: Number(req.query.system_id) } : {};
+    const sql = `SELECT *, size_bytes AS total_bytes FROM ontap_aggregates ${sysFilter} ORDER BY id`;
+    const data = db.prepare(sql).all(params);
+    res.json({ data, count: data.length });
+  } catch (err) { next(err); }
+});
 
 /**
  * @route GET /api/inventory/volumes
@@ -121,7 +130,7 @@ router.get('/volumes', (req, res, next) => {
 
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
     const sql = `
-      SELECT v.*, s.name AS svm_name
+      SELECT v.*, v.size_bytes AS total_bytes, s.name AS svm_name
       FROM ontap_volumes v
       LEFT JOIN ontap_svms s ON s.id = v.svm_id
       ${where}
@@ -173,7 +182,16 @@ router.get('/disks', (req, res, next) => {
  * @route GET /api/inventory/luns
  * @desc  Return all ONTAP LUNs.  Filterable by ?system_id.
  */
-router.get('/luns', inventoryHandler('ontap_luns'));
+router.get('/luns', (req, res, next) => {
+  try {
+    const db = getDb();
+    const sysFilter = req.query.system_id ? 'WHERE system_id = @system_id' : '';
+    const params = req.query.system_id ? { system_id: Number(req.query.system_id) } : {};
+    const sql = `SELECT *, size_bytes AS total_bytes, state AS status FROM ontap_luns ${sysFilter} ORDER BY id`;
+    const data = db.prepare(sql).all(params);
+    res.json({ data, count: data.length });
+  } catch (err) { next(err); }
+});
 
 /**
  * @route GET /api/inventory/lifs

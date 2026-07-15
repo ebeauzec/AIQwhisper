@@ -13,6 +13,8 @@ const Charts = {
 
   _svgNS: 'http://www.w3.org/2000/svg',
 
+  _palette: ['#3b82f6','#ef4444','#10b981','#f59e0b','#8b5cf6','#ec4899','#06b6d4','#f97316'],
+
   _textStyle: 'fill:var(--text-secondary);font-family:var(--font);font-size:11px;',
 
   _lerp(a, b, t) { return a + (b - a) * t; },
@@ -70,17 +72,37 @@ const Charts = {
    * ------------------------------------------------------- */
   line(container, datasets, options = {}) {
     if (!container) return;
+
+    // Support line(el, {series, xKey, yKey, ...opts})
+    if (datasets && !Array.isArray(datasets) && typeof datasets === 'object') {
+      options = datasets;
+      const series = datasets.series || [];
+      const xKey = datasets.xKey || 'timestamp';
+      const yKey = datasets.yKey || 'metric_value';
+      datasets = series.map((s, i) => ({
+        label: s.label || `Series ${i + 1}`,
+        color: s.color || this._palette[i % this._palette.length],
+        data: (s.data || []).map(d => ({ x: d[xKey], y: d[s.yKey || yKey] || 0 }))
+      }));
+    }
+
+    if (!datasets || !Array.isArray(datasets) || datasets.length === 0) {
+      container.innerHTML = '<div class="chart-empty">No data</div>';
+      return;
+    }
+
     const id = this._id();
     const {
       width = 600, height = 320,
       title = '', showGrid = true, showDots = true,
-      xAxisLabel = '', yAxisLabel = '',
+      xAxisLabel = '', yAxisLabel = '', yLabel = '', yFormatter,
       padding = { top: 30, right: 30, bottom: 50, left: 60 }
     } = options;
 
     // Compute data bounds
     let allX = [], allY = [];
     datasets.forEach(ds => {
+      if (!ds.data) return;
       ds.data.forEach(d => { allX.push(d.x); allY.push(d.y); });
     });
     if (allX.length === 0) {

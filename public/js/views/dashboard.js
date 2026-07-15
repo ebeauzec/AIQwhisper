@@ -80,7 +80,10 @@ const DashboardView = {
 
       // ---- Metric cards ----
       const criticalCount = s.issues?.critical ?? s.critical_issues ?? 0;
-      const warningCount = s.issues?.warning ?? s.warning_issues ?? 0;
+      const highCount = s.issues?.high ?? 0;
+      const mediumCount = s.issues?.medium ?? 0;
+      const warningCount = highCount + mediumCount;
+      const infoCount = s.issues?.info ?? 0;
       /* totalSystems already computed above for the welcome check */
       const capacityWarnings = s.capacityWarnings ?? s.capacity_warnings ?? 0;
 
@@ -108,8 +111,9 @@ const DashboardView = {
       if (issuesChartEl) {
         const issueData = [
           { label: 'Critical', value: criticalCount, color: '#ef4444' },
-          { label: 'Warning', value: warningCount, color: '#f59e0b' },
-          { label: 'Info', value: s.info_issues ?? s.info ?? 0, color: '#6366f1' }
+          { label: 'High', value: highCount, color: '#f97316' },
+          { label: 'Medium', value: mediumCount, color: '#f59e0b' },
+          { label: 'Info', value: infoCount, color: '#6366f1' }
         ].filter(d => d.value > 0);
 
         if (issueData.length) {

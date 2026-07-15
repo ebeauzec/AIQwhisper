@@ -131,12 +131,48 @@ router.post('/seed', (req, res, next) => {
       // CAPACITY SNAPSHOTS (30 days of trend data)
       for(let d=30;d>=0;d--){const ts=daysAgo(d);db.prepare(`INSERT INTO capacity_snapshots (system_id,resource_type,resource_id,resource_name,total_bytes,used_bytes,available_bytes,utilization_pct,snapshot_timestamp,created_at) VALUES (@sid,'aggregate','aggr1_prod_ssd','aggr1_prod_ssd',@t,@u,@a,@p,@ts,@now)`).run({sid:sys1,t:50*TB,u:Math.round((35+d*0.07)*TB),a:Math.round((15-d*0.07)*TB),p:70+d*0.14,ts,now});}
 
-      // RAW METRICS (24h of perf data)
+      // RAW METRICS (24h of perf data for all systems)
+      const metricInsert = db.prepare(`INSERT INTO metrics_raw (system_id,resource_type,resource_id,metric_name,metric_value,unit,timestamp,created_at) VALUES (@sid,@rt,@ri,@mn,@mv,@unit,@ts,@now)`);
       for(let h=24;h>=0;h--){const ts=hoursAgo(h);
-        db.prepare(`INSERT INTO metrics_raw (system_id,resource_type,resource_id,metric_name,metric_value,unit,timestamp,created_at) VALUES (@sid,'cluster','ontap-prod-01','iops_total',@v,'ops/s',@ts,@now)`).run({sid:sys1,v:25000+Math.floor(Math.random()*15000),ts,now});
-        db.prepare(`INSERT INTO metrics_raw (system_id,resource_type,resource_id,metric_name,metric_value,unit,timestamp,created_at) VALUES (@sid,'cluster','ontap-prod-01','latency_avg',@v,'ms',@ts,@now)`).run({sid:sys1,v:parseFloat((0.8+Math.random()*1.5).toFixed(2)),ts,now});
-        db.prepare(`INSERT INTO metrics_raw (system_id,resource_type,resource_id,metric_name,metric_value,unit,timestamp,created_at) VALUES (@sid,'cluster','ontap-prod-01','throughput_total',@v,'MB/s',@ts,@now)`).run({sid:sys1,v:800+Math.floor(Math.random()*600),ts,now});
-        db.prepare(`INSERT INTO metrics_raw (system_id,resource_type,resource_id,metric_name,metric_value,unit,timestamp,created_at) VALUES (@sid,'cluster','ontap-prod-01','cpu_utilization',@v,'percent',@ts,@now)`).run({sid:sys1,v:parseFloat((35+Math.random()*30).toFixed(1)),ts,now});
+        // ONTAP Prod — per-volume metrics
+        for(const vol of ['vol_finance_data','vol_engineering','vol_media_archive','vol_oracle_data','vol_sql_data','vol_vmware_ds1']){
+          metricInsert.run({sid:sys1,rt:'volume',ri:vol,mn:'read_iops',mv:1200+Math.floor(Math.random()*3000),unit:'ops/s',ts,now});
+          metricInsert.run({sid:sys1,rt:'volume',ri:vol,mn:'write_iops',mv:800+Math.floor(Math.random()*2000),unit:'ops/s',ts,now});
+          metricInsert.run({sid:sys1,rt:'volume',ri:vol,mn:'read_latency',mv:parseFloat((0.3+Math.random()*1.2).toFixed(2)),unit:'ms',ts,now});
+          metricInsert.run({sid:sys1,rt:'volume',ri:vol,mn:'write_latency',mv:parseFloat((0.5+Math.random()*2.0).toFixed(2)),unit:'ms',ts,now});
+          metricInsert.run({sid:sys1,rt:'volume',ri:vol,mn:'read_throughput',mv:Math.floor(50e6+Math.random()*200e6),unit:'B/s',ts,now});
+          metricInsert.run({sid:sys1,rt:'volume',ri:vol,mn:'write_throughput',mv:Math.floor(30e6+Math.random()*150e6),unit:'B/s',ts,now});
+        }
+        // ONTAP Prod — per-node metrics
+        for(const nd of ['ontap-prod-01-01','ontap-prod-01-02']){
+          metricInsert.run({sid:sys1,rt:'node',ri:nd,mn:'read_iops',mv:8000+Math.floor(Math.random()*12000),unit:'ops/s',ts,now});
+          metricInsert.run({sid:sys1,rt:'node',ri:nd,mn:'write_iops',mv:5000+Math.floor(Math.random()*8000),unit:'ops/s',ts,now});
+          metricInsert.run({sid:sys1,rt:'node',ri:nd,mn:'read_latency',mv:parseFloat((0.4+Math.random()*0.8).toFixed(2)),unit:'ms',ts,now});
+          metricInsert.run({sid:sys1,rt:'node',ri:nd,mn:'write_latency',mv:parseFloat((0.6+Math.random()*1.5).toFixed(2)),unit:'ms',ts,now});
+        }
+        // ONTAP DR — per-volume metrics
+        for(const vol of ['vol_finance_data_dp','vol_engineering_dp','vol_backup_weekly']){
+          metricInsert.run({sid:sys2,rt:'volume',ri:vol,mn:'read_iops',mv:200+Math.floor(Math.random()*800),unit:'ops/s',ts,now});
+          metricInsert.run({sid:sys2,rt:'volume',ri:vol,mn:'write_iops',mv:100+Math.floor(Math.random()*500),unit:'ops/s',ts,now});
+          metricInsert.run({sid:sys2,rt:'volume',ri:vol,mn:'read_latency',mv:parseFloat((0.5+Math.random()*1.0).toFixed(2)),unit:'ms',ts,now});
+          metricInsert.run({sid:sys2,rt:'volume',ri:vol,mn:'write_latency',mv:parseFloat((0.8+Math.random()*2.0).toFixed(2)),unit:'ms',ts,now});
+          metricInsert.run({sid:sys2,rt:'volume',ri:vol,mn:'read_throughput',mv:Math.floor(10e6+Math.random()*80e6),unit:'B/s',ts,now});
+          metricInsert.run({sid:sys2,rt:'volume',ri:vol,mn:'write_throughput',mv:Math.floor(5e6+Math.random()*50e6),unit:'B/s',ts,now});
+        }
+        // StorageGRID — per-bucket metrics
+        for(const bkt of ['finance-archive','media-assets','compliance-vault','backup-offsite']){
+          metricInsert.run({sid:sys3,rt:'bucket',ri:bkt,mn:'read_iops',mv:50+Math.floor(Math.random()*300),unit:'ops/s',ts,now});
+          metricInsert.run({sid:sys3,rt:'bucket',ri:bkt,mn:'write_iops',mv:20+Math.floor(Math.random()*150),unit:'ops/s',ts,now});
+          metricInsert.run({sid:sys3,rt:'bucket',ri:bkt,mn:'read_throughput',mv:Math.floor(5e6+Math.random()*50e6),unit:'B/s',ts,now});
+          metricInsert.run({sid:sys3,rt:'bucket',ri:bkt,mn:'write_throughput',mv:Math.floor(2e6+Math.random()*30e6),unit:'B/s',ts,now});
+        }
+        // E-Series — array-level metrics
+        metricInsert.run({sid:sys4,rt:'array',ri:'eseries-san-01',mn:'read_iops',mv:3000+Math.floor(Math.random()*5000),unit:'ops/s',ts,now});
+        metricInsert.run({sid:sys4,rt:'array',ri:'eseries-san-01',mn:'write_iops',mv:2000+Math.floor(Math.random()*4000),unit:'ops/s',ts,now});
+        metricInsert.run({sid:sys4,rt:'array',ri:'eseries-san-01',mn:'read_latency',mv:parseFloat((0.5+Math.random()*3.0).toFixed(2)),unit:'ms',ts,now});
+        metricInsert.run({sid:sys4,rt:'array',ri:'eseries-san-01',mn:'write_latency',mv:parseFloat((0.8+Math.random()*4.0).toFixed(2)),unit:'ms',ts,now});
+        metricInsert.run({sid:sys4,rt:'array',ri:'eseries-san-01',mn:'read_throughput',mv:Math.floor(100e6+Math.random()*300e6),unit:'B/s',ts,now});
+        metricInsert.run({sid:sys4,rt:'array',ri:'eseries-san-01',mn:'write_throughput',mv:Math.floor(80e6+Math.random()*200e6),unit:'B/s',ts,now});
       }
 
       // EMS EVENTS
