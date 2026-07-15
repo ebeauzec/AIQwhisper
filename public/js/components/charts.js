@@ -244,6 +244,13 @@ const Charts = {
    * ------------------------------------------------------- */
   bar(container, data, options = {}) {
     if (!container) return;
+
+    // Support both bar(el, array, opts) and bar(el, {data, ...opts})
+    if (data && !Array.isArray(data) && typeof data === 'object') {
+      options = data;
+      data = data.data || [];
+    }
+
     const id = this._id();
     const {
       width = 500, height = 300, title = '',
@@ -251,7 +258,7 @@ const Charts = {
       barColor = 'var(--accent)', showValues = true,
     } = options;
 
-    if (!data || data.length === 0) {
+    if (!data || !Array.isArray(data) || data.length === 0) {
       container.innerHTML = '<div class="chart-empty">No data</div>';
       return;
     }
@@ -312,12 +319,19 @@ const Charts = {
    * ------------------------------------------------------- */
   donut(container, segments, options = {}) {
     if (!container) return;
+
+    // Support both donut(el, array, opts) and donut(el, {data, ...opts})
+    if (segments && !Array.isArray(segments) && typeof segments === 'object') {
+      options = segments;
+      segments = segments.data || [];
+    }
+
     const {
       size = 240, thickness = 32, title = '', showLegend = true,
       centerLabel = '', centerValue = '',
     } = options;
 
-    if (!segments || segments.length === 0) {
+    if (!segments || !Array.isArray(segments) || segments.length === 0) {
       container.innerHTML = '<div class="chart-empty">No data</div>';
       return;
     }
